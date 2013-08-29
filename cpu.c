@@ -178,8 +178,15 @@ void run_op_ld_a16_sp(struct regs* r, struct memory* m, uint8_t op) {
 
 void run_op_stop(struct regs* r, struct memory* m, uint8_t op) {
   r->stop = 1;
-  printf("WARNING: STOP\n");
-  // TODO: apparently there's a speed change feature that should take effect when this opcode happens
+  if (!r->ime)
+    printf("warning: stopped with ime disabled\n");
+
+  if (r->speed_switch & 0x01) {
+    r->speed_switch = (r->speed_switch ^ 0x80) & 0x80;
+    printf("speed switched to %s\n", is_double_speed_mode(r) ? "double" : "normal");
+    printf("skipping stop instruction!\n");
+    r->stop = 0;
+  }
 }
 
 void run_op_jr_r8(struct regs* r, struct memory* m, uint8_t op) {
@@ -1244,8 +1251,6 @@ int run_cycle(struct regs* r, struct memory* m) {
   }
 
   if (r->stop || r->wait_for_interrupt) {
-    if (r->debug)
-      print_regs(r, m);
     r->cycles += 4;
     update_devices(m, r->cycles);
     return 0;
@@ -1271,6 +1276,10 @@ int run_cycle(struct regs* r, struct memory* m) {
   return 0;
 }
 
+int is_double_speed_mode(struct regs* r) {
+  return !!(r->speed_switch & 0x80);
+}
+
 void signal_interrupt(struct regs* r, int int_id, int signal) {
   int mask = (1 << int_id);
   if (signal)
@@ -1293,6 +1302,14 @@ inline uint8_t read_interrupt_enable(struct regs* r, uint8_t addr) {
 
 inline void write_interrupt_enable(struct regs* r, uint8_t addr, uint8_t value) {
   r->interrupt_enable = value;
+}
+
+uint8_t read_speed_switch(struct regs* r, uint8_t addr) {
+  return r->speed_switch;
+}
+
+void write_speed_switch(struct regs* r, uint8_t addr, uint8_t value) {
+  r->speed_switch = (r->speed_switch & 0x80) | (value & 0x01);
 }
 
 struct regs* create_cpu() {

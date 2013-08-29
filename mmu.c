@@ -101,7 +101,7 @@ static struct {
   {DEVICE_DISPLAY, (io_read8_fn)read_lcd_reg, (io_write8_fn)write_lcd_reg}, // 0x4A
   {DEVICE_DISPLAY, (io_read8_fn)read_lcd_reg, (io_write8_fn)write_lcd_reg}, // 0x4B
   {-1,             NULL, NULL}, // 0x4C
-  {-1,             NULL, NULL}, // 0x4D
+  {DEVICE_CPU,     (io_read8_fn)read_speed_switch, (io_write8_fn)write_speed_switch}, // 0x4D
   {-1,             NULL, NULL}, // 0x4E
   {-1,             NULL, NULL}, // 0x4F
   {-1,             NULL, NULL}, // 0x50
@@ -414,7 +414,7 @@ void mbc1_set_bank_numbers(struct memory* m) {
     m->wram_bank_num = MBC1_REGS(m)->rom_bank_num_high;
   } else {
     m->cart_rom_bank_num = MBC1_REGS(m)->rom_bank_num_low | (MBC1_REGS(m)->rom_bank_num_high << 5);
-    m->wram_bank_num = 0;
+    m->wram_bank_num = 1;
   }
 }
 

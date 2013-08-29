@@ -14,12 +14,17 @@ static int timer_freq[4] = {
 };
 
 void timer_update(struct timer* t, int cycles) {
-  t->divider = cycles / CPU_CYCLES_PER_SEC;
+
+  uint64_t cycles_per_increment = CPU_CYCLES_PER_SEC / (is_double_speed_mode(t->cpu) ? 32768 : 16384);
+  if (cycles - t->divider_last_incremented_at_cycles > cycles_per_increment) {
+    t->divider_last_incremented_at_cycles += cycles_per_increment;
+    t->divider++;
+  }
 
   if (t->control & 0x04) {
-    uint64_t cycles_per_increment = CPU_CYCLES_PER_SEC / timer_freq[t->control & 3];
-    if (cycles - t->last_incremented_at_cycles > cycles_per_increment) {
-      t->last_incremented_at_cycles += cycles_per_increment;
+    cycles_per_increment = CPU_CYCLES_PER_SEC / (is_double_speed_mode(t->cpu) ? (2 * timer_freq[t->control & 3]) : timer_freq[t->control & 3]);
+    if (cycles - t->timer_last_incremented_at_cycles > cycles_per_increment) {
+      t->timer_last_incremented_at_cycles += cycles_per_increment;
       if (t->timer == 0xFF) {
         signal_interrupt(t->cpu, INTERRUPT_TIMER, 1);
         t->timer = t->timer_mod;

@@ -12,7 +12,8 @@ struct timer {
   uint8_t control;
 
   struct regs* cpu;
-  uint64_t last_incremented_at_cycles;
+  uint64_t divider_last_incremented_at_cycles;
+  uint64_t timer_last_incremented_at_cycles;
 };
 
 void timer_update(struct timer* t, int cycles);

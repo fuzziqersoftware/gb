@@ -46,6 +46,8 @@ struct regs {
   uint8_t interrupt_flag;
   uint8_t interrupt_enable;
 
+  uint8_t speed_switch;
+
   uint64_t cycles;
 
   uint8_t wait_for_interrupt;
@@ -56,6 +58,7 @@ struct regs {
 };
 
 int run_cycle(struct regs* r, struct memory* m);
+int is_double_speed_mode(struct regs* r);
 
 void signal_interrupt(struct regs* r, int int_id, int signal);
 
@@ -63,6 +66,8 @@ uint8_t read_interrupt_flag(struct regs* r, uint8_t addr);
 void write_interrupt_flag(struct regs* r, uint8_t addr, uint8_t value);
 uint8_t read_interrupt_enable(struct regs* r, uint8_t addr);
 void write_interrupt_enable(struct regs* r, uint8_t addr, uint8_t value);
+uint8_t read_speed_switch(struct regs* r, uint8_t addr);
+void write_speed_switch(struct regs* r, uint8_t addr, uint8_t value);
 
 struct regs* create_cpu();
 void delete_cpu();
