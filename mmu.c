@@ -27,25 +27,25 @@ static struct {
   {DEVICE_INPUT,   (io_read8_fn)read_input_register, (io_write8_fn)write_input_register}, // 0x00
   {DEVICE_SERIAL,  (io_read8_fn)read_serial_data, (io_write8_fn)write_serial_data}, // 0x01
   {DEVICE_SERIAL,  (io_read8_fn)read_serial_control, (io_write8_fn)write_serial_control}, // 0x02
-  {-1,             NULL, NULL}, // 0x03
+  {DEVICE_INVALID, NULL, NULL}, // 0x03
   {DEVICE_TIMER,   (io_read8_fn)read_divider, (io_write8_fn)write_divider}, // 0x04
   {DEVICE_TIMER,   (io_read8_fn)read_timer, (io_write8_fn)write_timer}, // 0x05
   {DEVICE_TIMER,   (io_read8_fn)read_timer_mod, (io_write8_fn)write_timer_mod}, // 0x06
   {DEVICE_TIMER,   (io_read8_fn)read_timer_control, (io_write8_fn)write_timer_control}, // 0x07
-  {-1,             NULL, NULL}, // 0x08
-  {-1,             NULL, NULL}, // 0x09
-  {-1,             NULL, NULL}, // 0x0A
-  {-1,             NULL, NULL}, // 0x0B
-  {-1,             NULL, NULL}, // 0x0C
-  {-1,             NULL, NULL}, // 0x0D
-  {-1,             NULL, NULL}, // 0x0E
+  {DEVICE_INVALID, NULL, NULL}, // 0x08
+  {DEVICE_INVALID, NULL, NULL}, // 0x09
+  {DEVICE_INVALID, NULL, NULL}, // 0x0A
+  {DEVICE_INVALID, NULL, NULL}, // 0x0B
+  {DEVICE_INVALID, NULL, NULL}, // 0x0C
+  {DEVICE_INVALID, NULL, NULL}, // 0x0D
+  {DEVICE_INVALID, NULL, NULL}, // 0x0E
   {DEVICE_CPU,     (io_read8_fn)read_interrupt_flag, (io_write8_fn)write_interrupt_flag}, // 0x0F
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x10
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x11
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x12
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x13
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x14
-  {-1,             NULL, NULL}, // 0x15
+  {DEVICE_INVALID, NULL, NULL}, // 0x15
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x16
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x17
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x18
@@ -55,7 +55,7 @@ static struct {
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x1C
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x1D
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x1E
-  {-1,             NULL, NULL}, // 0x1F
+  {DEVICE_INVALID, NULL, NULL}, // 0x1F
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x20
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x21
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x22
@@ -63,15 +63,15 @@ static struct {
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x24
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x25
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x26
-  {-1,             NULL, NULL}, // 0x27
-  {-1,             NULL, NULL}, // 0x28
-  {-1,             NULL, NULL}, // 0x29
-  {-1,             NULL, NULL}, // 0x2A
-  {-1,             NULL, NULL}, // 0x2B
-  {-1,             NULL, NULL}, // 0x2C
-  {-1,             NULL, NULL}, // 0x2D
-  {-1,             NULL, NULL}, // 0x2E
-  {-1,             NULL, NULL}, // 0x2F
+  {DEVICE_INVALID, NULL, NULL}, // 0x27
+  {DEVICE_INVALID, NULL, NULL}, // 0x28
+  {DEVICE_INVALID, NULL, NULL}, // 0x29
+  {DEVICE_INVALID, NULL, NULL}, // 0x2A
+  {DEVICE_INVALID, NULL, NULL}, // 0x2B
+  {DEVICE_INVALID, NULL, NULL}, // 0x2C
+  {DEVICE_INVALID, NULL, NULL}, // 0x2D
+  {DEVICE_INVALID, NULL, NULL}, // 0x2E
+  {DEVICE_INVALID, NULL, NULL}, // 0x2F
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x30
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x31
   {DEVICE_AUDIO,   (io_read8_fn)read_audio_register, (io_write8_fn)write_audio_register}, // 0x32
@@ -100,207 +100,88 @@ static struct {
   {DEVICE_DISPLAY, (io_read8_fn)read_lcd_reg, (io_write8_fn)write_lcd_reg}, // 0x49
   {DEVICE_DISPLAY, (io_read8_fn)read_lcd_reg, (io_write8_fn)write_lcd_reg}, // 0x4A
   {DEVICE_DISPLAY, (io_read8_fn)read_lcd_reg, (io_write8_fn)write_lcd_reg}, // 0x4B
-  {-1,             NULL, NULL}, // 0x4C
+  {DEVICE_INVALID, NULL, NULL}, // 0x4C
   {DEVICE_CPU,     (io_read8_fn)read_speed_switch, (io_write8_fn)write_speed_switch}, // 0x4D
-  {-1,             NULL, NULL}, // 0x4E
+  {DEVICE_INVALID, NULL, NULL}, // 0x4E
   {-1,             NULL, NULL}, // 0x4F
-  {-1,             NULL, NULL}, // 0x50
+  {DEVICE_INVALID, NULL, NULL}, // 0x50
   {-1,             NULL, NULL}, // 0x51
   {-1,             NULL, NULL}, // 0x52
   {-1,             NULL, NULL}, // 0x53
   {-1,             NULL, NULL}, // 0x54
   {-1,             NULL, NULL}, // 0x55
   {-1,             NULL, NULL}, // 0x56
-  {-1,             NULL, NULL}, // 0x57
-  {-1,             NULL, NULL}, // 0x58
-  {-1,             NULL, NULL}, // 0x59
-  {-1,             NULL, NULL}, // 0x5A
-  {-1,             NULL, NULL}, // 0x5B
-  {-1,             NULL, NULL}, // 0x5C
-  {-1,             NULL, NULL}, // 0x5D
-  {-1,             NULL, NULL}, // 0x5E
-  {-1,             NULL, NULL}, // 0x5F
-  {-1,             NULL, NULL}, // 0x60
-  {-1,             NULL, NULL}, // 0x61
-  {-1,             NULL, NULL}, // 0x62
-  {-1,             NULL, NULL}, // 0x63
-  {-1,             NULL, NULL}, // 0x64
-  {-1,             NULL, NULL}, // 0x65
-  {-1,             NULL, NULL}, // 0x66
-  {-1,             NULL, NULL}, // 0x67
+  {DEVICE_INVALID, NULL, NULL}, // 0x57
+  {DEVICE_INVALID, NULL, NULL}, // 0x58
+  {DEVICE_INVALID, NULL, NULL}, // 0x59
+  {DEVICE_INVALID, NULL, NULL}, // 0x5A
+  {DEVICE_INVALID, NULL, NULL}, // 0x5B
+  {DEVICE_INVALID, NULL, NULL}, // 0x5C
+  {DEVICE_INVALID, NULL, NULL}, // 0x5D
+  {DEVICE_INVALID, NULL, NULL}, // 0x5E
+  {DEVICE_INVALID, NULL, NULL}, // 0x5F
+  {DEVICE_INVALID, NULL, NULL}, // 0x60
+  {DEVICE_INVALID, NULL, NULL}, // 0x61
+  {DEVICE_INVALID, NULL, NULL}, // 0x62
+  {DEVICE_INVALID, NULL, NULL}, // 0x63
+  {DEVICE_INVALID, NULL, NULL}, // 0x64
+  {DEVICE_INVALID, NULL, NULL}, // 0x65
+  {DEVICE_INVALID, NULL, NULL}, // 0x66
+  {DEVICE_INVALID, NULL, NULL}, // 0x67
   {-1,             NULL, NULL}, // 0x68
   {-1,             NULL, NULL}, // 0x69
   {-1,             NULL, NULL}, // 0x6A
   {-1,             NULL, NULL}, // 0x6B
   {-1,             NULL, NULL}, // 0x6C
-  {-1,             NULL, NULL}, // 0x6D
-  {-1,             NULL, NULL}, // 0x6E
-  {-1,             NULL, NULL}, // 0x6F
+  {DEVICE_INVALID, NULL, NULL}, // 0x6D
+  {DEVICE_INVALID, NULL, NULL}, // 0x6E
+  {DEVICE_INVALID, NULL, NULL}, // 0x6F
   {-1,             NULL, NULL}, // 0x70
-  {-1,             NULL, NULL}, // 0x71
+  {DEVICE_INVALID, NULL, NULL}, // 0x71
   {-1,             NULL, NULL}, // 0x72
   {-1,             NULL, NULL}, // 0x73
   {-1,             NULL, NULL}, // 0x74
   {-1,             NULL, NULL}, // 0x75
   {-1,             NULL, NULL}, // 0x76
   {-1,             NULL, NULL}, // 0x77
-  {-1,             NULL, NULL}, // 0x78
-  {-1,             NULL, NULL}, // 0x79
-  {-1,             NULL, NULL}, // 0x7A
-  {-1,             NULL, NULL}, // 0x7B
-  {-1,             NULL, NULL}, // 0x7C
-  {-1,             NULL, NULL}, // 0x7D
-  {-1,             NULL, NULL}, // 0x7E
-  {-1,             NULL, NULL}, // 0x7F
-  {-1,             NULL, NULL}, // 0x80
-  {-1,             NULL, NULL}, // 0x81
-  {-1,             NULL, NULL}, // 0x82
-  {-1,             NULL, NULL}, // 0x83
-  {-1,             NULL, NULL}, // 0x84
-  {-1,             NULL, NULL}, // 0x85
-  {-1,             NULL, NULL}, // 0x86
-  {-1,             NULL, NULL}, // 0x87
-  {-1,             NULL, NULL}, // 0x88
-  {-1,             NULL, NULL}, // 0x89
-  {-1,             NULL, NULL}, // 0x8A
-  {-1,             NULL, NULL}, // 0x8B
-  {-1,             NULL, NULL}, // 0x8C
-  {-1,             NULL, NULL}, // 0x8D
-  {-1,             NULL, NULL}, // 0x8E
-  {-1,             NULL, NULL}, // 0x8F
-  {-1,             NULL, NULL}, // 0x90
-  {-1,             NULL, NULL}, // 0x91
-  {-1,             NULL, NULL}, // 0x92
-  {-1,             NULL, NULL}, // 0x93
-  {-1,             NULL, NULL}, // 0x94
-  {-1,             NULL, NULL}, // 0x95
-  {-1,             NULL, NULL}, // 0x96
-  {-1,             NULL, NULL}, // 0x97
-  {-1,             NULL, NULL}, // 0x98
-  {-1,             NULL, NULL}, // 0x99
-  {-1,             NULL, NULL}, // 0x9A
-  {-1,             NULL, NULL}, // 0x9B
-  {-1,             NULL, NULL}, // 0x9C
-  {-1,             NULL, NULL}, // 0x9D
-  {-1,             NULL, NULL}, // 0x9E
-  {-1,             NULL, NULL}, // 0x9F
-  {-1,             NULL, NULL}, // 0xA0
-  {-1,             NULL, NULL}, // 0xA1
-  {-1,             NULL, NULL}, // 0xA2
-  {-1,             NULL, NULL}, // 0xA3
-  {-1,             NULL, NULL}, // 0xA4
-  {-1,             NULL, NULL}, // 0xA5
-  {-1,             NULL, NULL}, // 0xA6
-  {-1,             NULL, NULL}, // 0xA7
-  {-1,             NULL, NULL}, // 0xA8
-  {-1,             NULL, NULL}, // 0xA9
-  {-1,             NULL, NULL}, // 0xAA
-  {-1,             NULL, NULL}, // 0xAB
-  {-1,             NULL, NULL}, // 0xAC
-  {-1,             NULL, NULL}, // 0xAD
-  {-1,             NULL, NULL}, // 0xAE
-  {-1,             NULL, NULL}, // 0xAF
-  {-1,             NULL, NULL}, // 0xB0
-  {-1,             NULL, NULL}, // 0xB1
-  {-1,             NULL, NULL}, // 0xB2
-  {-1,             NULL, NULL}, // 0xB3
-  {-1,             NULL, NULL}, // 0xB4
-  {-1,             NULL, NULL}, // 0xB5
-  {-1,             NULL, NULL}, // 0xB6
-  {-1,             NULL, NULL}, // 0xB7
-  {-1,             NULL, NULL}, // 0xB8
-  {-1,             NULL, NULL}, // 0xB9
-  {-1,             NULL, NULL}, // 0xBA
-  {-1,             NULL, NULL}, // 0xBB
-  {-1,             NULL, NULL}, // 0xBC
-  {-1,             NULL, NULL}, // 0xBD
-  {-1,             NULL, NULL}, // 0xBE
-  {-1,             NULL, NULL}, // 0xBF
-  {-1,             NULL, NULL}, // 0xC0
-  {-1,             NULL, NULL}, // 0xC1
-  {-1,             NULL, NULL}, // 0xC2
-  {-1,             NULL, NULL}, // 0xC3
-  {-1,             NULL, NULL}, // 0xC4
-  {-1,             NULL, NULL}, // 0xC5
-  {-1,             NULL, NULL}, // 0xC6
-  {-1,             NULL, NULL}, // 0xC7
-  {-1,             NULL, NULL}, // 0xC8
-  {-1,             NULL, NULL}, // 0xC9
-  {-1,             NULL, NULL}, // 0xCA
-  {-1,             NULL, NULL}, // 0xCB
-  {-1,             NULL, NULL}, // 0xCC
-  {-1,             NULL, NULL}, // 0xCD
-  {-1,             NULL, NULL}, // 0xCE
-  {-1,             NULL, NULL}, // 0xCF
-  {-1,             NULL, NULL}, // 0xD0
-  {-1,             NULL, NULL}, // 0xD1
-  {-1,             NULL, NULL}, // 0xD2
-  {-1,             NULL, NULL}, // 0xD3
-  {-1,             NULL, NULL}, // 0xD4
-  {-1,             NULL, NULL}, // 0xD5
-  {-1,             NULL, NULL}, // 0xD6
-  {-1,             NULL, NULL}, // 0xD7
-  {-1,             NULL, NULL}, // 0xD8
-  {-1,             NULL, NULL}, // 0xD9
-  {-1,             NULL, NULL}, // 0xDA
-  {-1,             NULL, NULL}, // 0xDB
-  {-1,             NULL, NULL}, // 0xDC
-  {-1,             NULL, NULL}, // 0xDD
-  {-1,             NULL, NULL}, // 0xDE
-  {-1,             NULL, NULL}, // 0xDF
-  {-1,             NULL, NULL}, // 0xE0
-  {-1,             NULL, NULL}, // 0xE1
-  {-1,             NULL, NULL}, // 0xE2
-  {-1,             NULL, NULL}, // 0xE3
-  {-1,             NULL, NULL}, // 0xE4
-  {-1,             NULL, NULL}, // 0xE5
-  {-1,             NULL, NULL}, // 0xE6
-  {-1,             NULL, NULL}, // 0xE7
-  {-1,             NULL, NULL}, // 0xE8
-  {-1,             NULL, NULL}, // 0xE9
-  {-1,             NULL, NULL}, // 0xEA
-  {-1,             NULL, NULL}, // 0xEB
-  {-1,             NULL, NULL}, // 0xEC
-  {-1,             NULL, NULL}, // 0xED
-  {-1,             NULL, NULL}, // 0xEE
-  {-1,             NULL, NULL}, // 0xEF
-  {-1,             NULL, NULL}, // 0xF0
-  {-1,             NULL, NULL}, // 0xF1
-  {-1,             NULL, NULL}, // 0xF2
-  {-1,             NULL, NULL}, // 0xF3
-  {-1,             NULL, NULL}, // 0xF4
-  {-1,             NULL, NULL}, // 0xF5
-  {-1,             NULL, NULL}, // 0xF6
-  {-1,             NULL, NULL}, // 0xF7
-  {-1,             NULL, NULL}, // 0xF8
-  {-1,             NULL, NULL}, // 0xF9
-  {-1,             NULL, NULL}, // 0xFA
-  {-1,             NULL, NULL}, // 0xFB
-  {-1,             NULL, NULL}, // 0xFC
-  {-1,             NULL, NULL}, // 0xFD
-  {-1,             NULL, NULL}, // 0xFE
-  {DEVICE_CPU,     (io_read8_fn)read_interrupt_enable, (io_write8_fn)write_interrupt_enable}, // 0xFF
+  {DEVICE_INVALID, NULL, NULL}, // 0x78
+  {DEVICE_INVALID, NULL, NULL}, // 0x79
+  {DEVICE_INVALID, NULL, NULL}, // 0x7A
+  {DEVICE_INVALID, NULL, NULL}, // 0x7B
+  {DEVICE_INVALID, NULL, NULL}, // 0x7C
+  {DEVICE_INVALID, NULL, NULL}, // 0x7D
+  {DEVICE_INVALID, NULL, NULL}, // 0x7E
+  {DEVICE_INVALID, NULL, NULL}, // 0x7F
 };
 
-uint8_t io_read8(struct memory* m, uint8_t addr) {
-  if (io_register_functions[addr].read8) {
-    void* device = m->devices[io_register_functions[addr].device_id];
-    if (!device) {
-      printf("> read from unattached device type %d\n", io_register_functions[addr].device_id);
-      return 0;
-    }
-    return io_register_functions[addr].read8(device, addr);
+void* device_for_addr(struct memory* m, uint8_t addr) {
+  if (addr >= 0x80) {
+    printf("> internal error! device_for_addr called with addr=%02X\n", addr);
+    return NULL;
   }
-  printf("> unhandled io_read8  : %02X\n", addr);
-  return 0;
+
+  int device_id = io_register_functions[addr].device_id;
+  if (device_id == DEVICE_INVALID)
+    return NULL; // silly rom, there's no device here
+  if (device_id < 0 || device_id > NUM_DEVICE_TYPES) {
+    printf("> access of unimplemented device type %d at address FF%02X\n", device_id, addr);
+    return NULL;
+  }
+
+  if (!m->devices[device_id])
+    printf("> access of unattached device type %d\n", device_id);
+  return m->devices[device_id];
+}
+
+uint8_t io_read8(struct memory* m, uint8_t addr) {
+  void* device = device_for_addr(m, addr);
+  return device ? io_register_functions[addr].read8(device, addr) : 0;
 }
 
 void io_write8(struct memory* m, uint8_t addr, uint8_t data) {
-  if (io_register_functions[addr].write8) {
-    void* device = m->devices[io_register_functions[addr].device_id];
+  void* device = device_for_addr(m, addr);
+  if (device)
     io_register_functions[addr].write8(device, addr, data);
-  } else
-    printf("> unhandled io_write8 : %02X = %02X\n", addr, data);
 }
 
 
@@ -341,8 +222,10 @@ void* ptr(struct memory* m, uint16_t addr) {
 }
 
 uint8_t read8(struct memory* m, uint16_t addr) {
-  if ((addr >= 0xFF00 && addr < 0xFF80) || addr == 0xFFFF)
+  if (addr >= 0xFF00 && addr < 0xFF80)
     return io_read8(m, addr & 0xFF);
+  if (addr == 0xFFFF)
+    return read_interrupt_enable((struct regs*)m->devices[DEVICE_CPU], addr);
   return m->read8(m, addr);
 }
 
@@ -351,8 +234,10 @@ uint16_t read16(struct memory* m, uint16_t addr) {
 }
 
 void write8(struct memory* m, uint16_t addr, uint8_t data) {
-  if ((addr >= 0xFF00 && addr < 0xFF80) || addr == 0xFFFF)
+  if (addr >= 0xFF00 && addr < 0xFF80)
     io_write8(m, addr & 0xFF, data);
+  else if (addr == 0xFFFF)
+    write_interrupt_enable((struct regs*)m->devices[DEVICE_CPU], addr, data);
   else
     m->write8(m, addr, data);
 }

@@ -9,7 +9,8 @@
 #define DEVICE_CPU       3
 #define DEVICE_AUDIO     4
 #define DEVICE_INPUT     5
-#define NUM_DEVICE_TYPES 6
+#define DEVICE_INVALID   6
+#define NUM_DEVICE_TYPES DEVICE_INVALID
 
 struct memory {
   union cart_data* cart;
