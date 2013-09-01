@@ -183,14 +183,17 @@ void run_op_stop(struct regs* r, struct memory* m, uint8_t op) {
 
   if (r->speed_switch & 0x01) {
     r->speed_switch = (r->speed_switch ^ 0x80) & 0x80;
-    printf("speed switched to %s\n", is_double_speed_mode(r) ? "double" : "normal");
-    printf("skipping stop instruction!\n");
     r->stop = 0;
+    printf("speed switched to %s; skipping stop instruction\n", is_double_speed_mode(r) ? "double" : "normal");
   }
 }
 
 void run_op_jr_r8(struct regs* r, struct memory* m, uint8_t op) {
   uint8_t v = ifetch(r, m);
+  if (v == 0xFE) {
+    printf("warning: jr -02 opcode halted system\n");
+    r->stop = 1;
+  }
   r->pc += sign_extend(v);
 }
 
