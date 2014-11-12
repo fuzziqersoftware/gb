@@ -1,8 +1,10 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "audio.h"
+#include "cpu.h"
 
 // Sound Overview
 // 
@@ -223,6 +225,11 @@
 // disable sound. The flags get set when sound output is restarted by setting the Initial flag
 // (Bit 7 in NR14-NR44), the flag remains set until the sound length has expired (if enabled).
 // A volume envelopes which has decreased to zero volume will NOT cause the sound flag to go off.
+
+void audio_init(struct audio* a, struct regs* cpu) {
+  memset(a, 0, sizeof(*a));
+  a->cpu = cpu;
+}
 
 void audio_update(struct audio* a, int cycles) { } // TODO
 

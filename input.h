@@ -19,12 +19,17 @@
 #define SELECTED_KEYS        0x02
 
 struct input {
+  int fd;
+  int update_cycle;
+  int update_frequency;
   int keys_pressed;
   int selected;
   struct regs* cpu;
 };
 
-void input_update(struct input* i, int cycles);
+void input_init(struct input* i, struct regs* cpu);
+
+void input_update(struct input* i, uint64_t cycles);
 uint8_t read_input_register(struct input* i, uint8_t addr);
 void write_input_register(struct input* i, uint8_t addr, uint8_t value);
 

@@ -4,6 +4,8 @@
 #include <string.h>
 
 #include "cpu.h"
+#include "debug.h"
+#include "terminal.h"
 
 
 
@@ -30,22 +32,23 @@ int get_flag(struct regs* r, int flag_id) {
   return 0;
 }
 
-inline uint8_t make_flags_reg(int z, int n, int h, int c) {
+static inline uint8_t make_flags_reg(int z, int n, int h, int c) {
   return (z << 7) | (n << 6) | (h << 5) | (c << 4);
 }
 
-inline uint16_t* get_r_ptr(struct regs* r, int r_) {
+static inline uint16_t* get_r_ptr(struct regs* r, int r_) {
   return &r->bc + r_;
 }
 
-inline uint16_t read_r_value(struct regs* r, int r_) {
+static inline uint16_t read_r_value(struct regs* r, int r_) {
   return *get_r_ptr(r, r_);
 }
-inline void write_r_value(struct regs* r, int r_, uint16_t value) {
+
+static inline void write_r_value(struct regs* r, int r_, uint16_t value) {
   *get_r_ptr(r, r_) = value;
 }
 
-inline uint8_t read_x_value(struct regs* r, struct memory* m, int x) {
+static inline uint8_t read_x_value(struct regs* r, struct memory* m, int x) {
   if (x == 0)
     return r->b;
   if (x == 1)
@@ -65,7 +68,7 @@ inline uint8_t read_x_value(struct regs* r, struct memory* m, int x) {
   return 0; // TODO: should probably fail here in some way
 }
 
-inline void write_x_value(struct regs* r, struct memory* m, int x, uint8_t value) {
+static inline void write_x_value(struct regs* r, struct memory* m, int x, uint8_t value) {
   if (x == 0)
     r->b = value;
   else if (x == 1)
@@ -84,7 +87,7 @@ inline void write_x_value(struct regs* r, struct memory* m, int x, uint8_t value
     r->a = value;
 }
 
-inline uint8_t read_e_value(struct regs* r, struct memory* m, int e) {
+static inline uint8_t read_e_value(struct regs* r, struct memory* m, int e) {
   if (e == 0)
     return read8(m, r->bc);
   if (e == 1)
@@ -96,7 +99,7 @@ inline uint8_t read_e_value(struct regs* r, struct memory* m, int e) {
   return 0; // TODO: should probably fail here in some way
 }
 
-inline void write_e_value(struct regs* r, struct memory* m, int e, uint8_t value) {
+static inline void write_e_value(struct regs* r, struct memory* m, int e, uint8_t value) {
   if (e == 0)
     write8(m, r->bc, value);
   else if (e == 1)
@@ -107,22 +110,22 @@ inline void write_e_value(struct regs* r, struct memory* m, int e, uint8_t value
     write8(m, r->hl--, value);
 }
 
-inline uint8_t ifetch(struct regs* r, struct memory* m) {
+static inline uint8_t ifetch(struct regs* r, struct memory* m) {
   return read8(m, r->pc++);
 }
 
-inline uint16_t ifetch_word(struct regs* r, struct memory* m) {
+static inline uint16_t ifetch_word(struct regs* r, struct memory* m) {
   register int v = read16(m, r->pc);
   r->pc += 2;
   return v;
 }
 
-inline void stack_push(struct regs* r, struct memory* m, uint16_t value) {
+static inline void stack_push(struct regs* r, struct memory* m, uint16_t value) {
   r->sp -= 2;
   write16(m, r->sp, value);
 }
 
-inline uint16_t stack_pop(struct regs* r, struct memory* m) {
+static inline uint16_t stack_pop(struct regs* r, struct memory* m) {
   register uint16_t v = read16(m, r->sp);
   r->sp += 2;
   return v;
@@ -133,35 +136,35 @@ inline uint16_t stack_pop(struct regs* r, struct memory* m) {
 ///////////////////////////////////////////////////////////////////////////////
 // opcode decoding
 
-inline int get_r_field(uint8_t op) {
+static inline int get_r_field(uint8_t op) {
   return (op >> 4) & 3;
 }
 
-inline int get_x_field(uint8_t op) {
+static inline int get_x_field(uint8_t op) {
   return (op >> 3) & 7;
 }
 
-inline int get_bit_field(uint8_t op) {
+static inline int get_bit_field(uint8_t op) {
   return (op >> 3) & 7;
 }
 
-inline int get_x2_field(uint8_t op) {
+static inline int get_x2_field(uint8_t op) {
   return op & 7;
 }
 
-inline int get_e_field(uint8_t op) {
+static inline int get_e_field(uint8_t op) {
   return (op >> 4) & 3;
 }
 
-inline int get_flag_field(uint8_t op) {
+static inline int get_flag_field(uint8_t op) {
   return (op >> 3) & 3;
 }
 
-inline int get_z_field(uint8_t op) {
+static inline int get_z_field(uint8_t op) {
   return (op >> 3) & 7;
 }
 
-inline int16_t sign_extend(uint8_t x) {
+static inline int16_t sign_extend(uint8_t x) {
   return (x & 0x80) ? (0xFF00 | x) : x;
 }
 
@@ -335,17 +338,6 @@ void run_op_add_a_x(struct regs* r, struct memory* m, uint8_t op) {
   r->a = new_value;
 }
 
-/*
-  register UINT16 r1,r2;  \
-  register UINT8 f; \
-  r1=(UINT16)((m_A&0xF)+((x)&0xF)+((m_F&FLAG_C)?1:0));  \
-  r2=(UINT16)(m_A+(x)+((m_F&FLAG_C)?1:0)); \
-  if( (m_A=(UINT8)r2)==0 ) f=FLAG_Z; \
-  else f=0; \
-  if( r2>0xFF )   f|=FLAG_C; \
-  if( r1>0xF )    f|=FLAG_H; \
-  m_F=f; */
-
 void run_op_adc_a_x(struct regs* r, struct memory* m, uint8_t op) {
   register uint8_t add_value = read_x_value(r, m, get_x2_field(op));
   register uint8_t half_test = (r->a & 0x0F) + (add_value & 0x0F) + get_flag_value(r, FLAG_C);
@@ -403,10 +395,20 @@ void run_op_ldh_ff00_a8_a(struct regs* r, struct memory* m, uint8_t op) {
 
 void run_op_add_sp_r8(struct regs* r, struct memory* m, uint8_t op) {
   register uint16_t add_value = sign_extend(ifetch(r, m));
-  register uint8_t half_test = (r->sp & 0x0F) + (add_value & 0x0F);
-  register uint16_t carry_test = (r->sp & 0xFF) + add_value;
-  r->sp += add_value;
-  r->f = make_flags_reg(r->sp == 0, 1, (half_test & 0xF0) != 0, (carry_test & 0xFF00) != 0);
+  register uint16_t half_test, carry_test;
+
+  if (add_value < 0x8000) {
+    half_test = ((r->sp & 0x0F) + (add_value & 0x0F)) & 0xF0;
+    carry_test = ((r->sp & 0xFF) + add_value) & 0xFF00;
+    r->sp += add_value;
+  } else {
+    uint16_t new_sp = r->sp + add_value;
+    half_test = (new_sp & 0x0F) <= (r->sp & 0x0F);
+    carry_test = (new_sp & 0xFF) <= (r->sp & 0xFF);
+    r->sp = new_sp;
+  }
+
+  r->f = make_flags_reg(0, 0, half_test != 0, carry_test != 0);
 }
 
 void run_op_ldh_a_ff00_a8(struct regs* r, struct memory* m, uint8_t op) {
@@ -415,10 +417,19 @@ void run_op_ldh_a_ff00_a8(struct regs* r, struct memory* m, uint8_t op) {
 
 void run_op_ld_hl_sp_r8(struct regs* r, struct memory* m, uint8_t op) {
   register uint16_t add_value = sign_extend(ifetch(r, m));
-  register uint8_t half_test = (r->sp & 0x0F) + (add_value & 0x0F);
-  register uint16_t carry_test = (r->sp & 0xFF) + add_value;
-  r->hl = r->sp + add_value;
-  r->f = make_flags_reg(r->sp == 0, 1, (half_test & 0xF0) != 0, (carry_test & 0xFF00) != 0);
+  register uint16_t half_test, carry_test;
+
+  if (add_value < 0x8000) {
+    r->hl = r->sp + add_value;
+    half_test = ((r->sp & 0x0F) + (add_value & 0x0F)) & 0xF0;
+    carry_test = ((r->sp & 0xFF) + add_value) & 0xFF00;
+  } else {
+    r->hl = r->sp + add_value;
+    half_test = (r->hl & 0x0F) <= (r->sp & 0x0F);
+    carry_test = (r->hl & 0xFF) <= (r->sp & 0xFF);
+  }
+
+  r->f = make_flags_reg(0, 0, half_test != 0, carry_test != 0);
 }
 
 void run_op_pop_r(struct regs* r, struct memory* m, uint8_t op) {
@@ -1228,7 +1239,13 @@ opcode_def cb_opcodes[0x100] = {
   {0xFF, "set",              2,  8,  8, ARG_X2,    ARG_BIT,  run_op_set},
 };
 
-int run_cycle(struct regs* r, struct memory* m) {
+int run_cycle(struct regs* r, const struct regs* prev, struct memory* m) {
+
+  // check for debug interrupt
+  if (r->debug_interrupt_requested) {
+    r->debug_interrupt_requested = 0;
+    debug_main(r, m);
+  }
 
   // check for interrupts
   uint8_t irq = r->interrupt_enable & r->interrupt_flag;
@@ -1259,9 +1276,6 @@ int run_cycle(struct regs* r, struct memory* m) {
     return 0;
   }
 
-  if (r->debug)
-    print_regs(r, m);
-
   uint8_t op = ifetch(r, m);
 
   opcode_def* table = opcodes;
@@ -1276,6 +1290,10 @@ int run_cycle(struct regs* r, struct memory* m) {
   r->cycles += table[op].min_cycles;
 
   update_devices(m, r->cycles);
+
+  if (r->debug)
+    print_regs(r, prev, m);
+
   return 0;
 }
 
@@ -1289,6 +1307,10 @@ void signal_interrupt(struct regs* r, int int_id, int signal) {
     r->interrupt_flag |= mask;
   else
     r->interrupt_flag &= ~mask;
+}
+
+void signal_debug_interrupt(struct regs* r) {
+  r->debug_interrupt_requested = 1;
 }
 
 inline uint8_t read_interrupt_flag(struct regs* r, uint8_t addr) {
@@ -1342,7 +1364,7 @@ const char* e_field_names[] = {"(bc)", "(de)", "(hl+)", "(hl-)"};
 const char* flag_field_names[] = {"nz", "z", "nc", "c"};
 const char* s_field_names[] = {"bc", "de", "hl", "af"};
 
-static int print_opcode(FILE* f, uint8_t* opcode_data, struct memory* m) {
+static int print_opcode(FILE* f, const uint8_t* opcode_data, struct memory* m) {
 
   if (!f)
     f = stdout;
@@ -1442,20 +1464,68 @@ static int print_opcode(FILE* f, uint8_t* opcode_data, struct memory* m) {
   return opcode_offset;
 }
 
-void print_regs(const struct regs* r, struct memory* m) {
+#define setup_color_if_true(cond) \
+  do { \
+    if (cond) \
+      change_color(FORMAT_FG_MAGENTA, FORMAT_BOLD, FORMAT_END); \
+    else \
+      change_color(FORMAT_NORMAL, FORMAT_END); \
+  } while (0)
 
-  if (m) {
-    printf("regs: cycles=%08llX ddx=%02X af=%04X bc=%04X de=%04X hl=%04X sp=%04X ime=%d ie=%02X if=%02X pc=%04X ",
-        r->cycles, read8(m, r->ddx), r->af, r->bc, r->de, r->hl, r->sp, r->ime, r->interrupt_enable, r->interrupt_flag, r->pc);
-    printf("code=%02X%02X%02X   ", read8(m, r->pc), read8(m, r->pc + 1), read8(m, r->pc + 2));
-    uint8_t* opcode_data = ptr(m, r->pc);
-    print_opcode(stdout, opcode_data, m);
-    printf("\n");
+#define print_reg_value(regname, format) \
+  do { \
+    setup_color_if_true(prev && (r->regname != prev->regname)); \
+    printf(" " #regname "=" format, r->regname); \
+  } while (0)
 
-  } else {
-    printf("regs: cycles=%08llX af=%04X bc=%04X de=%04X hl=%04X sp=%04X ime=%d ie=%02X if=%02X pc=%04X\n",
-        r->cycles, r->af, r->bc, r->de, r->hl, r->sp, r->ime, r->interrupt_enable, r->interrupt_flag, r->pc);
-  }
+void print_regs(const struct regs* r, const struct regs* prev, struct memory* m) {
+
+  uint8_t code_data[4];
+  code_data[0] = read8(m, r->pc);
+  code_data[1] = read8(m, r->pc + 1);
+  code_data[2] = read8(m, r->pc + 2);
+  code_data[3] = 0;
+  printf("regs:");
+  print_reg_value(cycles, "%016llX");
+  print_reg_value(ddx, "%04X");
+  print_reg_value(af, "%04X");
+  print_reg_value(bc, "%04X");
+  print_reg_value(de, "%04X");
+  print_reg_value(hl, "%04X");
+  print_reg_value(sp, "%04X");
+  print_reg_value(ime, "%d");
+  print_reg_value(interrupt_enable, "%02X");
+  print_reg_value(interrupt_flag, "%02X");
+  print_reg_value(pc, "%04X");
+  change_color(FORMAT_NORMAL, FORMAT_END);
+  printf(" code=%02X%02X%02X", code_data[0], code_data[1], code_data[2]);
+
+  int x;
+  for (x = 0; x < 3; x++)
+    if (code_data[x] < 0x20 || code_data[x] > 0x7F)
+      code_data[x] = '?';
+  printf(" \'%s\'   ", code_data);
+
+  uint8_t* opcode_data = ptr(m, r->pc);
+  print_opcode(stdout, opcode_data, m);
+  printf("\n");
+}
+
+void print_regs_debug(FILE* f, const struct regs* r) {
+  fprintf(f, ">>> registers\n");
+  fprintf(f, "AF = %04X    (A = %02X, F = %02X)\n", r->af, r->a, r->f);
+  fprintf(f, "BC = %04X    (B = %02X, C = %02X)\n", r->bc, r->b, r->c);
+  fprintf(f, "DE = %04X    (D = %02X, E = %02X)\n", r->de, r->d, r->e);
+  fprintf(f, "HL = %04X    (H = %02X, L = %02X)\n", r->hl, r->h, r->l);
+  fprintf(f, "SP = %04X    PC = %04X    IME = %02X\n", r->sp, r->pc, r->ime);
+  fprintf(f, "interrupt_flag = %02X        interrupt_enable = %02X\n",
+      r->interrupt_flag, r->interrupt_enable);
+  fprintf(f, "wait_for_interrupt = %02X    stop = %02X\n",
+      r->wait_for_interrupt, r->stop);
+  fprintf(f, "speed_switch = %02X          cycles = %016llX\n", r->speed_switch,
+      r->cycles);
+  fprintf(f, "debug = %02X                 memory_watchpoint = %02X\n",
+      r->debug, r->ddx);
 }
 
 void disassemble(FILE* output_stream, void* data, uint32_t size, uint32_t offset, uint32_t dasm_size) {
@@ -1468,6 +1538,28 @@ void disassemble(FILE* output_stream, void* data, uint32_t size, uint32_t offset
     fprintf(output_stream, "%04X ", offset);
     offset += print_opcode(output_stream, (uint8_t*)data + offset, NULL);
     fprintf(output_stream, "\n");
+  }
+}
+
+void disassemble_memory(FILE* output_stream, struct memory* m, uint16_t addr, uint16_t size) {
+
+  if (!output_stream)
+    output_stream = stdout;
+
+  uint16_t dasm_end = addr + size;
+  while (addr < dasm_end) {
+    uint8_t opcode_data[3];
+    if (!valid_ptr(m, addr)) {
+      fprintf(output_stream, "%04X << not valid address >>\n", addr);
+      addr++;
+    } else {
+      opcode_data[0] = read8(m, addr);
+      if (opcode_data[0] == 0xCB)
+        opcode_data[1] = read8(m, addr + 1);
+      fprintf(output_stream, "%04X ", addr);
+      addr += print_opcode(output_stream, opcode_data, NULL);
+      fprintf(output_stream, "\n");
+    }
   }
 }
 

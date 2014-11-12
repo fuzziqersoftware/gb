@@ -37,6 +37,7 @@ struct memory {
   void (*write16)(struct memory* m, uint16_t addr, uint16_t data);
 };
 
+int valid_ptr(struct memory* m, uint16_t addr);
 void* ptr(struct memory* m, uint16_t addr);
 uint8_t read8(struct memory* m, uint16_t addr);
 uint16_t read16(struct memory* m, uint16_t addr);
@@ -48,5 +49,7 @@ void delete_memory(struct memory* m);
 
 void add_device(struct memory* m, int device_type, void* device);
 void update_devices(struct memory* m, uint64_t cycles);
+
+void print_memory_debug(FILE* f, struct memory* m);
 
 #endif // MMU_H

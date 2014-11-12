@@ -6,10 +6,12 @@
 #include "cpu.h"
 
 struct serial {
-	struct regs* cpu;
-	uint8_t data;
-	uint8_t control;
+  struct regs* cpu;
+  uint8_t data;
+  uint8_t control;
 };
+
+void serial_init(struct serial* s, struct regs* cpu);
 
 void serial_update(struct serial* s, int cycles);
 uint8_t read_serial_data(struct serial* s, uint8_t addr);

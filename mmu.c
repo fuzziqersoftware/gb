@@ -10,6 +10,8 @@
 #include "cpu.h"
 #include "audio.h"
 #include "input.h"
+#include "debug.h"
+#include "terminal.h"
 
 
 
@@ -156,7 +158,7 @@ static struct {
 
 void* device_for_addr(struct memory* m, uint8_t addr) {
   if (addr >= 0x80) {
-    printf("> internal error! device_for_addr called with addr=%02X\n", addr);
+    fprintf(stderr, "> internal error! device_for_addr called with addr=%02X\n", addr);
     return NULL;
   }
 
@@ -164,12 +166,12 @@ void* device_for_addr(struct memory* m, uint8_t addr) {
   if (device_id == DEVICE_INVALID)
     return NULL; // silly rom, there's no device here
   if (device_id < 0 || device_id > NUM_DEVICE_TYPES) {
-    printf("> access of unimplemented device type %d at address FF%02X\n", device_id, addr);
+    fprintf(stderr, "> access of unimplemented device type %d at address FF%02X\n", device_id, addr);
     return NULL;
   }
 
   if (!m->devices[device_id])
-    printf("> access of unattached device type %d\n", device_id);
+    fprintf(stderr, "> access of unattached device type %d\n", device_id);
   return m->devices[device_id];
 }
 
@@ -191,9 +193,28 @@ void io_write8(struct memory* m, uint8_t addr, uint8_t data) {
 
 // TODO: we only implement MBC1 for now; implement more MBCs later.
 
+int valid_ptr(struct memory* m, uint16_t addr) {
+  if (addr >= 0xE000 && addr < 0xFE00)
+    addr -= 0x2000;
+
+  if (addr < 0xA000)
+    return 1;
+  if (addr < 0xC000)
+    return m->eram ? 1 : 0;
+  if (addr < 0xE000)
+    return 1;
+  if (addr < 0xFE00)
+    return 0; // unsupported for now
+  if (addr < 0xFEA0)
+    return 1;
+  if (addr < 0xFF00)
+    return 0; // nothing there
+  return 1;
+}
+
 void* ptr(struct memory* m, uint16_t addr) {
   if (addr == m->write_breakpoint_addr)
-    printf("warning: memory breakpoint\n");
+    fprintf(stderr, "warning: memory breakpoint\n");
 
   if (addr >= 0xE000 && addr < 0xFE00)
     addr -= 0x2000;
@@ -222,6 +243,10 @@ void* ptr(struct memory* m, uint16_t addr) {
 }
 
 uint8_t read8(struct memory* m, uint16_t addr) {
+  if (!valid_ptr(m, addr)) {
+    fprintf(stderr, "mmu: warning: read8\'ing bad address: %04X\n", addr);
+    return 0;
+  }
   if (addr >= 0xFF00 && addr < 0xFF80)
     return io_read8(m, addr & 0xFF);
   if (addr == 0xFFFF)
@@ -230,10 +255,19 @@ uint8_t read8(struct memory* m, uint16_t addr) {
 }
 
 uint16_t read16(struct memory* m, uint16_t addr) {
+  if (!valid_ptr(m, addr)) {
+    fprintf(stderr, "mmu: warning: read16\'ing bad address: %04X\n", addr);
+    return 0;
+  }
   return m->read16(m, addr);
 }
 
 void write8(struct memory* m, uint16_t addr, uint8_t data) {
+  if (!valid_ptr(m, addr)) {
+    fprintf(stderr, "mmu: warning: write8\'ing bad address: %04X = %02X\n",
+        addr, data);
+    return;
+  }
   if (addr >= 0xFF00 && addr < 0xFF80)
     io_write8(m, addr & 0xFF, data);
   else if (addr == 0xFFFF)
@@ -243,6 +277,11 @@ void write8(struct memory* m, uint16_t addr, uint8_t data) {
 }
 
 void write16(struct memory* m, uint16_t addr, uint16_t data) {
+  if (!valid_ptr(m, addr)) {
+    fprintf(stderr, "mmu: warning: write16\'ing bad address: %04X = %04X\n",
+        addr, data);
+    return;
+  }
   m->write16(m, addr, data);
 }
 
@@ -408,4 +447,34 @@ void update_devices(struct memory* m, uint64_t cycles) {
     timer_update(m->devices[DEVICE_TIMER], cycles);
   if (m->devices[DEVICE_INPUT])
     input_update(m->devices[DEVICE_INPUT], cycles);
+}
+
+void print_memory_debug(FILE* out, struct memory* m) {
+  fprintf(out, ">>> rom 0\n");
+  print_data(out, 0x0000, m->cart->data, 0x4000);
+
+  fprintf(out, "\n>>> rom %d\n", m->cart_rom_bank_num);
+  print_data(out, 0x4000, &m->cart->data[m->cart_rom_bank_num * 0x4000], 0x4000);
+
+  fprintf(out, "\n>>> vram\n");
+  print_data(out, 0x8000, m->vram, 0x2000);
+
+  if (m->eram) {
+    fprintf(out, "\n>>> eram %d\n", m->eram_bank_num);
+    print_data(out, 0xA000, &m->eram[m->eram_bank_num * 0x2000], 0x2000);
+  }
+
+  fprintf(out, "\n>>> wram 0\n");
+  print_data(out, 0xC000, m->wram, 0x1000);
+
+  fprintf(out, "\n>>> wram %d\n", m->wram_bank_num);
+  print_data(out, 0xD000, &m->wram[m->wram_bank_num * 0x1000], 0x1000);
+
+  fprintf(out, "\n>>> sprite table\n");
+  print_data(out, 0xFE00, m->sprite_table, 0xA0);
+
+  fprintf(out, "\n>>> hram\n");
+  print_data(out, 0xFF80, m->hram, 0x80);
+
+  fprintf(out, "\n");
 }

@@ -3,7 +3,11 @@
 
 #include <stdint.h>
 
+#include "cpu.h"
+
 struct audio {
+  struct regs* cpu;
+
   uint8_t ch1_sweep;             // FF10
   uint8_t ch1_pattern_length;    // FF11
   uint8_t ch1_volume;            // FF12
@@ -30,6 +34,8 @@ struct audio {
   uint8_t unused3[0x09];         // FF27-FF2F; not readable, not writable
   uint8_t ch3_wave_data[0x10];   // FF30-FF3F
 };
+
+void audio_init(struct audio* a, struct regs* cpu);
 
 void audio_update(struct audio* a, int cycles);
 uint8_t read_audio_register(struct audio* a, uint8_t addr);

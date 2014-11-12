@@ -1,6 +1,7 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "timer.h"
 #include "cpu.h"
@@ -13,7 +14,12 @@ static int timer_freq[4] = {
 	16384,
 };
 
-void timer_update(struct timer* t, int cycles) {
+void timer_init(struct timer* t, struct regs* cpu) {
+  memset(t, 0, sizeof(*t));
+  t->cpu = cpu;
+}
+
+void timer_update(struct timer* t, uint64_t cycles) {
 
   uint64_t cycles_per_increment = CPU_CYCLES_PER_SEC / (is_double_speed_mode(t->cpu) ? 32768 : 16384);
   if (cycles - t->divider_last_incremented_at_cycles > cycles_per_increment) {
@@ -34,35 +40,36 @@ void timer_update(struct timer* t, int cycles) {
   }
 }
 
-inline uint8_t read_divider(struct timer* t, uint8_t addr) {
+uint8_t read_divider(struct timer* t, uint8_t addr) {
   return t->divider;
 }
 
-inline void write_divider(struct timer* t, uint8_t addr, uint8_t value) {
+void write_divider(struct timer* t, uint8_t addr, uint8_t value) {
   t->divider = 0;
 }
 
-inline uint8_t read_timer(struct timer* t, uint8_t addr) {
+uint8_t read_timer(struct timer* t, uint8_t addr) {
   return t->timer;
 }
 
-inline void write_timer(struct timer* t, uint8_t addr, uint8_t value) {
+void write_timer(struct timer* t, uint8_t addr, uint8_t value) {
   t->timer = value;
 }
 
-inline uint8_t read_timer_mod(struct timer* t, uint8_t addr) {
+uint8_t read_timer_mod(struct timer* t, uint8_t addr) {
   return t->timer_mod;
 }
 
-inline void write_timer_mod(struct timer* t, uint8_t addr, uint8_t value) {
+void write_timer_mod(struct timer* t, uint8_t addr, uint8_t value) {
   t->timer_mod = value;
 }
 
-inline uint8_t read_timer_control(struct timer* t, uint8_t addr) {
+uint8_t read_timer_control(struct timer* t, uint8_t addr) {
   return t->control;
 }
 
-inline void write_timer_control(struct timer* t, uint8_t addr, uint8_t value) {
+void write_timer_control(struct timer* t, uint8_t addr, uint8_t value) {
   t->control = value;
-  printf("timer control reset: %dHz, %s\n", timer_freq[t->control & 3], (t->control & 4) ? "enabled" : "disabled");
+  fprintf(stderr, "timer control reset: %dHz, %s\n", timer_freq[t->control & 3],
+      (t->control & 4) ? "enabled" : "disabled");
 }

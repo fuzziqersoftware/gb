@@ -45,6 +45,7 @@ struct regs {
   uint8_t ime;
   uint8_t interrupt_flag;
   uint8_t interrupt_enable;
+  uint8_t debug_interrupt_requested;
 
   uint8_t speed_switch;
 
@@ -57,10 +58,11 @@ struct regs {
   uint16_t ddx;
 };
 
-int run_cycle(struct regs* r, struct memory* m);
+int run_cycle(struct regs* r, const struct regs* prev, struct memory* m);
 int is_double_speed_mode(struct regs* r);
 
 void signal_interrupt(struct regs* r, int int_id, int signal);
+void signal_debug_interrupt(struct regs* r);
 
 uint8_t read_interrupt_flag(struct regs* r, uint8_t addr);
 void write_interrupt_flag(struct regs* r, uint8_t addr, uint8_t value);
@@ -71,8 +73,10 @@ void write_speed_switch(struct regs* r, uint8_t addr, uint8_t value);
 
 struct regs* create_cpu();
 void delete_cpu();
-void print_regs(const struct regs* r, struct memory* m);
+void print_regs(const struct regs* r, const struct regs* prev, struct memory* m);
+void print_regs_debug(FILE* f, const struct regs* r);
 void disassemble(FILE* output_stream, void* data, uint32_t size, uint32_t offset, uint32_t dasm_size);
+void disassemble_memory(FILE* output_stream, struct memory* m, uint16_t addr, uint16_t size);
 
 union cart_data* debug_cart();
 
