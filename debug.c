@@ -21,6 +21,8 @@ void debug_main(struct regs* r, struct memory* m) {
   tmpnam(filename);
   FILE* f = fopen(filename, "w");
 
+  fprintf(f, "debug interrupt: %s\n\n", r->debug_interrupt_reason);
+
   print_regs_debug(f, r);
 
   fprintf(f, "\n>>> disassembly around pc\n");

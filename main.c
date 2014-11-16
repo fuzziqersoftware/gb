@@ -28,6 +28,7 @@ int main(int argc, char* argv[]) {
   int debug = 0, do_disassemble = 0, use_debug_cart = 0, fd = 0,
       wait_vblank = 0, modify_terminal_settings = 0, render_freq = 0;
   int32_t breakpoint_addr = -1, watchpoint_addr = -1, write_breakpoint_addr = -1, memory_watchpoint_addr = -1;
+  uint64_t stop_after_cycles = 0;
   int x;
   for (x = 1; x < argc; x++) {
     if (argv[x][0] == '-') {
@@ -53,6 +54,8 @@ int main(int argc, char* argv[]) {
         fd = -1;
       else if (!strcmp(argv[x], "--term-settings"))
         modify_terminal_settings = 1;
+      else if (!strncmp(argv[x], "--stop-cycles=", 14))
+        sscanf(&argv[x][14], "%016llX", &stop_after_cycles);
     } else {
       rom_file_name = argv[x];
     }
@@ -139,14 +142,14 @@ int main(int argc, char* argv[]) {
   // go go gadget
   struct regs prev;
   memset(&prev, 0, sizeof(prev));
-  while (r->pc != breakpoint_addr) {
+  while ((!stop_after_cycles || (r->cycles < stop_after_cycles)) && (r->pc != breakpoint_addr)) {
     run_cycle(r, &prev, m);
     if (r->pc == watchpoint_addr)
       getchar();
     memcpy(&prev, r, sizeof(prev));
   }
 
-  while (getchar()) {
+  while ((!stop_after_cycles || (r->cycles < stop_after_cycles)) && getchar()) {
     run_cycle(r, &prev, m);
     memcpy(&prev, r, sizeof(prev));
   }

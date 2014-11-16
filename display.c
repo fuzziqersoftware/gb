@@ -243,8 +243,42 @@ void write_lcd_reg(struct display* d, uint8_t addr, uint8_t value) {
       break;
 
     case 0x46:
+      signal_debug_interrupt(d->cpu, "lcd oam dma transfer unimplemented");
       // TODO: DMA that shit
       break;
+
+    case 0x47: {
+      d->bg_palette = value;
+
+      int x;
+      fprintf(stderr, "lcd: bg palette set to [");
+      for (x = 0; x < 4; x++)
+        fprintf(stderr, "%d", (d->bg_palette >> (x << 1)) & 3);
+      fprintf(stderr, "]\n");
+      break;
+    }
+
+    case 0x48: {
+      d->palette0 = value;
+
+      int x;
+      fprintf(stderr, "lcd: object palette 0 set to [");
+      for (x = 0; x < 4; x++)
+        fprintf(stderr, "%d", (d->palette0 >> (x << 1)) & 3);
+      fprintf(stderr, "]\n");
+      break;
+    }
+
+    case 0x49: {
+      d->palette1 = value;
+
+      int x;
+      fprintf(stderr, "lcd: object palette 1 set to [");
+      for (x = 0; x < 4; x++)
+        fprintf(stderr, "%d", (d->palette1 >> (x << 1)) & 3);
+      fprintf(stderr, "]\n");
+      break;
+    }
 
     default:
       fprintf(stderr, "lcd reg write: %02X %02X\n", addr, value);

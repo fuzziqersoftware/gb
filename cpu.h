@@ -45,7 +45,7 @@ struct regs {
   uint8_t ime;
   uint8_t interrupt_flag;
   uint8_t interrupt_enable;
-  uint8_t debug_interrupt_requested;
+  const char* debug_interrupt_reason;
 
   uint8_t speed_switch;
 
@@ -62,7 +62,7 @@ int run_cycle(struct regs* r, const struct regs* prev, struct memory* m);
 int is_double_speed_mode(struct regs* r);
 
 void signal_interrupt(struct regs* r, int int_id, int signal);
-void signal_debug_interrupt(struct regs* r);
+void signal_debug_interrupt(struct regs* r, const char* reason);
 
 uint8_t read_interrupt_flag(struct regs* r, uint8_t addr);
 void write_interrupt_flag(struct regs* r, uint8_t addr, uint8_t value);

@@ -698,6 +698,7 @@ typedef struct {
 #define ARG_SP   18
 #define ARG_HLM  19
 #define ARG_HL   20
+#define ARG_A16S 21
 
 opcode_def opcodes[0x100] = {
   {0x00, "nop",              1,  4,  4, ARG_NONE,  ARG_NONE, run_op_nop},
@@ -836,73 +837,73 @@ opcode_def opcodes[0x100] = {
   {0x7E, "ld",               1,  8,  8, ARG_X,     ARG_X2,   run_op_ld_x_x},
   {0x7F, "ld",               1,  4,  4, ARG_X,     ARG_X2,   run_op_ld_x_x},
 
-  {0x80, "add",              1,  4,  4, ARG_X,     ARG_NONE, run_op_add_a_x},
-  {0x81, "add",              1,  4,  4, ARG_X,     ARG_NONE, run_op_add_a_x},
-  {0x82, "add",              1,  4,  4, ARG_X,     ARG_NONE, run_op_add_a_x},
-  {0x83, "add",              1,  4,  4, ARG_X,     ARG_NONE, run_op_add_a_x},
-  {0x84, "add",              1,  4,  4, ARG_X,     ARG_NONE, run_op_add_a_x},
-  {0x85, "add",              1,  4,  4, ARG_X,     ARG_NONE, run_op_add_a_x},
-  {0x86, "add",              1,  8,  8, ARG_X,     ARG_NONE, run_op_add_a_x},
-  {0x87, "add",              1,  4,  4, ARG_X,     ARG_NONE, run_op_add_a_x},
-  {0x88, "adc",              1,  4,  4, ARG_X,     ARG_NONE, run_op_adc_a_x},
-  {0x89, "adc",              1,  4,  4, ARG_X,     ARG_NONE, run_op_adc_a_x},
-  {0x8A, "adc",              1,  4,  4, ARG_X,     ARG_NONE, run_op_adc_a_x},
-  {0x8B, "adc",              1,  4,  4, ARG_X,     ARG_NONE, run_op_adc_a_x},
-  {0x8C, "adc",              1,  4,  4, ARG_X,     ARG_NONE, run_op_adc_a_x},
-  {0x8D, "adc",              1,  4,  4, ARG_X,     ARG_NONE, run_op_adc_a_x},
-  {0x8E, "adc",              1,  8,  8, ARG_X,     ARG_NONE, run_op_adc_a_x},
-  {0x8F, "adc",              1,  4,  4, ARG_X,     ARG_NONE, run_op_adc_a_x},
+  {0x80, "add",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_add_a_x},
+  {0x81, "add",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_add_a_x},
+  {0x82, "add",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_add_a_x},
+  {0x83, "add",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_add_a_x},
+  {0x84, "add",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_add_a_x},
+  {0x85, "add",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_add_a_x},
+  {0x86, "add",              1,  8,  8, ARG_X2,    ARG_NONE, run_op_add_a_x},
+  {0x87, "add",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_add_a_x},
+  {0x88, "adc",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_adc_a_x},
+  {0x89, "adc",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_adc_a_x},
+  {0x8A, "adc",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_adc_a_x},
+  {0x8B, "adc",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_adc_a_x},
+  {0x8C, "adc",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_adc_a_x},
+  {0x8D, "adc",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_adc_a_x},
+  {0x8E, "adc",              1,  8,  8, ARG_X2,    ARG_NONE, run_op_adc_a_x},
+  {0x8F, "adc",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_adc_a_x},
 
-  {0x90, "sub",              1,  4,  4, ARG_X,     ARG_NONE, run_op_sub_a_x},
-  {0x91, "sub",              1,  4,  4, ARG_X,     ARG_NONE, run_op_sub_a_x},
-  {0x92, "sub",              1,  4,  4, ARG_X,     ARG_NONE, run_op_sub_a_x},
-  {0x93, "sub",              1,  4,  4, ARG_X,     ARG_NONE, run_op_sub_a_x},
-  {0x94, "sub",              1,  4,  4, ARG_X,     ARG_NONE, run_op_sub_a_x},
-  {0x95, "sub",              1,  4,  4, ARG_X,     ARG_NONE, run_op_sub_a_x},
-  {0x96, "sub",              1,  8,  8, ARG_X,     ARG_NONE, run_op_sub_a_x},
-  {0x97, "sub",              1,  4,  4, ARG_X,     ARG_NONE, run_op_sub_a_x},
-  {0x98, "subc",             1,  4,  4, ARG_X,     ARG_NONE, run_op_subc_a_x},
-  {0x99, "subc",             1,  4,  4, ARG_X,     ARG_NONE, run_op_subc_a_x},
-  {0x9A, "subc",             1,  4,  4, ARG_X,     ARG_NONE, run_op_subc_a_x},
-  {0x9B, "subc",             1,  4,  4, ARG_X,     ARG_NONE, run_op_subc_a_x},
-  {0x9C, "subc",             1,  4,  4, ARG_X,     ARG_NONE, run_op_subc_a_x},
-  {0x9D, "subc",             1,  4,  4, ARG_X,     ARG_NONE, run_op_subc_a_x},
-  {0x9E, "subc",             1,  8,  8, ARG_X,     ARG_NONE, run_op_subc_a_x},
-  {0x9F, "subc",             1,  4,  4, ARG_X,     ARG_NONE, run_op_subc_a_x},
+  {0x90, "sub",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_sub_a_x},
+  {0x91, "sub",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_sub_a_x},
+  {0x92, "sub",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_sub_a_x},
+  {0x93, "sub",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_sub_a_x},
+  {0x94, "sub",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_sub_a_x},
+  {0x95, "sub",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_sub_a_x},
+  {0x96, "sub",              1,  8,  8, ARG_X2,    ARG_NONE, run_op_sub_a_x},
+  {0x97, "sub",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_sub_a_x},
+  {0x98, "subc",             1,  4,  4, ARG_X2,    ARG_NONE, run_op_subc_a_x},
+  {0x99, "subc",             1,  4,  4, ARG_X2,    ARG_NONE, run_op_subc_a_x},
+  {0x9A, "subc",             1,  4,  4, ARG_X2,    ARG_NONE, run_op_subc_a_x},
+  {0x9B, "subc",             1,  4,  4, ARG_X2,    ARG_NONE, run_op_subc_a_x},
+  {0x9C, "subc",             1,  4,  4, ARG_X2,    ARG_NONE, run_op_subc_a_x},
+  {0x9D, "subc",             1,  4,  4, ARG_X2,    ARG_NONE, run_op_subc_a_x},
+  {0x9E, "subc",             1,  8,  8, ARG_X2,    ARG_NONE, run_op_subc_a_x},
+  {0x9F, "subc",             1,  4,  4, ARG_X2,    ARG_NONE, run_op_subc_a_x},
 
-  {0xA0, "and",              1,  4,  4, ARG_X,     ARG_NONE, run_op_and_a_x},
-  {0xA1, "and",              1,  4,  4, ARG_X,     ARG_NONE, run_op_and_a_x},
-  {0xA2, "and",              1,  4,  4, ARG_X,     ARG_NONE, run_op_and_a_x},
-  {0xA3, "and",              1,  4,  4, ARG_X,     ARG_NONE, run_op_and_a_x},
-  {0xA4, "and",              1,  4,  4, ARG_X,     ARG_NONE, run_op_and_a_x},
-  {0xA5, "and",              1,  4,  4, ARG_X,     ARG_NONE, run_op_and_a_x},
-  {0xA6, "and",              1,  8,  8, ARG_X,     ARG_NONE, run_op_and_a_x},
-  {0xA7, "and",              1,  4,  4, ARG_X,     ARG_NONE, run_op_and_a_x},
-  {0xA8, "xor",              1,  4,  4, ARG_X,     ARG_NONE, run_op_xor_a_x},
-  {0xA9, "xor",              1,  4,  4, ARG_X,     ARG_NONE, run_op_xor_a_x},
-  {0xAA, "xor",              1,  4,  4, ARG_X,     ARG_NONE, run_op_xor_a_x},
-  {0xAB, "xor",              1,  4,  4, ARG_X,     ARG_NONE, run_op_xor_a_x},
-  {0xAC, "xor",              1,  4,  4, ARG_X,     ARG_NONE, run_op_xor_a_x},
-  {0xAD, "xor",              1,  4,  4, ARG_X,     ARG_NONE, run_op_xor_a_x},
-  {0xAE, "xor",              1,  8,  8, ARG_X,     ARG_NONE, run_op_xor_a_x},
-  {0xAF, "xor",              1,  4,  4, ARG_X,     ARG_NONE, run_op_xor_a_x},
+  {0xA0, "and",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_and_a_x},
+  {0xA1, "and",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_and_a_x},
+  {0xA2, "and",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_and_a_x},
+  {0xA3, "and",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_and_a_x},
+  {0xA4, "and",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_and_a_x},
+  {0xA5, "and",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_and_a_x},
+  {0xA6, "and",              1,  8,  8, ARG_X2,    ARG_NONE, run_op_and_a_x},
+  {0xA7, "and",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_and_a_x},
+  {0xA8, "xor",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_xor_a_x},
+  {0xA9, "xor",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_xor_a_x},
+  {0xAA, "xor",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_xor_a_x},
+  {0xAB, "xor",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_xor_a_x},
+  {0xAC, "xor",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_xor_a_x},
+  {0xAD, "xor",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_xor_a_x},
+  {0xAE, "xor",              1,  8,  8, ARG_X2,    ARG_NONE, run_op_xor_a_x},
+  {0xAF, "xor",              1,  4,  4, ARG_X2,    ARG_NONE, run_op_xor_a_x},
 
-  {0xB0, "or",               1,  4,  4, ARG_X,     ARG_NONE, run_op_or_a_x},
-  {0xB1, "or",               1,  4,  4, ARG_X,     ARG_NONE, run_op_or_a_x},
-  {0xB2, "or",               1,  4,  4, ARG_X,     ARG_NONE, run_op_or_a_x},
-  {0xB3, "or",               1,  4,  4, ARG_X,     ARG_NONE, run_op_or_a_x},
-  {0xB4, "or",               1,  4,  4, ARG_X,     ARG_NONE, run_op_or_a_x},
-  {0xB5, "or",               1,  4,  4, ARG_X,     ARG_NONE, run_op_or_a_x},
-  {0xB6, "or",               1,  8,  8, ARG_X,     ARG_NONE, run_op_or_a_x},
-  {0xB7, "or",               1,  4,  4, ARG_X,     ARG_NONE, run_op_or_a_x},
-  {0xB8, "cp",               1,  4,  4, ARG_X,     ARG_NONE, run_op_cp_a_x},
-  {0xB9, "cp",               1,  4,  4, ARG_X,     ARG_NONE, run_op_cp_a_x},
-  {0xBA, "cp",               1,  4,  4, ARG_X,     ARG_NONE, run_op_cp_a_x},
-  {0xBB, "cp",               1,  4,  4, ARG_X,     ARG_NONE, run_op_cp_a_x},
-  {0xBC, "cp",               1,  4,  4, ARG_X,     ARG_NONE, run_op_cp_a_x},
-  {0xBD, "cp",               1,  4,  4, ARG_X,     ARG_NONE, run_op_cp_a_x},
-  {0xBE, "cp",               1,  8,  8, ARG_X,     ARG_NONE, run_op_cp_a_x},
-  {0xBF, "cp",               1,  4,  4, ARG_X,     ARG_NONE, run_op_cp_a_x},
+  {0xB0, "or",               1,  4,  4, ARG_X2,    ARG_NONE, run_op_or_a_x},
+  {0xB1, "or",               1,  4,  4, ARG_X2,    ARG_NONE, run_op_or_a_x},
+  {0xB2, "or",               1,  4,  4, ARG_X2,    ARG_NONE, run_op_or_a_x},
+  {0xB3, "or",               1,  4,  4, ARG_X2,    ARG_NONE, run_op_or_a_x},
+  {0xB4, "or",               1,  4,  4, ARG_X2,    ARG_NONE, run_op_or_a_x},
+  {0xB5, "or",               1,  4,  4, ARG_X2,    ARG_NONE, run_op_or_a_x},
+  {0xB6, "or",               1,  8,  8, ARG_X2,    ARG_NONE, run_op_or_a_x},
+  {0xB7, "or",               1,  4,  4, ARG_X2,    ARG_NONE, run_op_or_a_x},
+  {0xB8, "cp",               1,  4,  4, ARG_X2,    ARG_NONE, run_op_cp_a_x},
+  {0xB9, "cp",               1,  4,  4, ARG_X2,    ARG_NONE, run_op_cp_a_x},
+  {0xBA, "cp",               1,  4,  4, ARG_X2,    ARG_NONE, run_op_cp_a_x},
+  {0xBB, "cp",               1,  4,  4, ARG_X2,    ARG_NONE, run_op_cp_a_x},
+  {0xBC, "cp",               1,  4,  4, ARG_X2,    ARG_NONE, run_op_cp_a_x},
+  {0xBD, "cp",               1,  4,  4, ARG_X2,    ARG_NONE, run_op_cp_a_x},
+  {0xBE, "cp",               1,  8,  8, ARG_X2,    ARG_NONE, run_op_cp_a_x},
+  {0xBF, "cp",               1,  4,  4, ARG_X2,    ARG_NONE, run_op_cp_a_x},
 
   {0xC0, "ret",              1,  8, 20, ARG_FLAG,  ARG_NONE, run_op_ret_y},
   {0xC1, "pop",              1, 12, 12, ARG_S,     ARG_NONE, run_op_pop_r},
@@ -948,7 +949,7 @@ opcode_def opcodes[0x100] = {
   {0xE7, "rst",              1, 16, 16, ARG_Z,     ARG_NONE, run_op_rst},
   {0xE8, "add",              2, 16, 16, ARG_SP,    ARG_R8,   run_op_add_sp_r8},
   {0xE9, "jp",               1,  4,  4, ARG_HLM,   ARG_NONE, run_op_jp_hl},
-  {0xEA, "ld",               3, 16, 16, ARG_A16M,  ARG_A,    run_op_ld_a16_a},
+  {0xEA, "ld",               3, 16, 16, ARG_A16S,  ARG_A,    run_op_ld_a16_a},
   {0xEB, NULL,               1,  0,  0, ARG_NONE,  ARG_NONE, NULL},
   {0xEC, NULL,               1,  0,  0, ARG_NONE,  ARG_NONE, NULL},
   {0xED, NULL,               1,  0,  0, ARG_NONE,  ARG_NONE, NULL},
@@ -965,7 +966,7 @@ opcode_def opcodes[0x100] = {
   {0xF7, "rst",              1, 16, 16, ARG_Z,     ARG_NONE, run_op_rst},
   {0xF8, "ld",               2, 12, 12, ARG_HL,    ARG_SPR8, run_op_ld_hl_sp_r8},
   {0xF9, "ld",               1,  8,  8, ARG_SP,    ARG_HL,   run_op_ld_sp_hl},
-  {0xFA, "ld",               2,  8, 16, ARG_A,     ARG_A16M, run_op_ld_a_a16},
+  {0xFA, "ld",               2,  8, 16, ARG_A,     ARG_A16S, run_op_ld_a_a16},
   {0xFB, "ei",               1,  4,  4, ARG_NONE,  ARG_NONE, run_op_ei},
   {0xFC, NULL,               1,  0,  0, ARG_NONE,  ARG_NONE, NULL},
   {0xFD, NULL,               1,  0,  0, ARG_NONE,  ARG_NONE, NULL},
@@ -1242,9 +1243,9 @@ opcode_def cb_opcodes[0x100] = {
 int run_cycle(struct regs* r, const struct regs* prev, struct memory* m) {
 
   // check for debug interrupt
-  if (r->debug_interrupt_requested) {
-    r->debug_interrupt_requested = 0;
+  if (r->debug_interrupt_reason) {
     debug_main(r, m);
+    r->debug_interrupt_reason = NULL;
   }
 
   // check for interrupts
@@ -1309,8 +1310,8 @@ void signal_interrupt(struct regs* r, int int_id, int signal) {
     r->interrupt_flag &= ~mask;
 }
 
-void signal_debug_interrupt(struct regs* r) {
-  r->debug_interrupt_requested = 1;
+void signal_debug_interrupt(struct regs* r, const char* reason) {
+  r->debug_interrupt_reason = reason;
 }
 
 inline uint8_t read_interrupt_flag(struct regs* r, uint8_t addr) {
@@ -1426,6 +1427,13 @@ static int print_opcode(FILE* f, const uint8_t* opcode_data, struct memory* m) {
           fprintf(f, " [%02X %02X]", read8(m, addr), read8(m, addr + 1));
         opcode_offset += 2;
         break;
+      case ARG_A16S:
+        addr = *(uint16_t*)&opcode_data[opcode_offset];
+        fprintf(f, " (%04X)", addr);
+        if (m)
+          fprintf(f, " [%02X]", read8(m, addr));
+        opcode_offset += 2;
+        break;
       case ARG_X2:
         fprintf(f, " %s", x_field_names[get_x2_field(op)]);
         break;
@@ -1502,7 +1510,7 @@ void print_regs(const struct regs* r, const struct regs* prev, struct memory* m)
 
   int x;
   for (x = 0; x < 3; x++)
-    if (code_data[x] < 0x20 || code_data[x] > 0x7F)
+    if (code_data[x] < 0x20 || code_data[x] > 0x7E)
       code_data[x] = '?';
   printf(" \'%s\'   ", code_data);
 

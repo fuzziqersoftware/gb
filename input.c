@@ -53,7 +53,7 @@ void input_update(struct input* i, uint64_t cycles) {
   for (x = 0; data[x] != -1; x++) {
     fprintf(stderr, "data: %02X (%c)\n", data[x], data[x]);
     if (data[x] == 4) // ctrl+d
-      signal_debug_interrupt(i->cpu);
+      signal_debug_interrupt(i->cpu, "requested by user");
     if ((x < 13) && (data[x] == 0x1B) && (data[x + 1] == 0x5B)) {
       if (data[x + 2] == 'A')
         i->keys_pressed |= KEY_UP;
@@ -82,9 +82,9 @@ void input_update(struct input* i, uint64_t cycles) {
 
 uint8_t read_input_register(struct input* i, uint8_t addr) {
   if (i->selected == SELECTED_KEYS)
-    return i->keys_pressed & 0x0F;
+    return (~i->keys_pressed) & 0x0F;
   if (i->selected == SELECTED_DIRECTIONS)
-    return (i->keys_pressed >> 4) & 0x0F;
+    return ((~i->keys_pressed) >> 4) & 0x0F;
   return 0;
 }
 

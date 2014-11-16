@@ -15,9 +15,6 @@
 #define LCD_CONTROL_BG_DISPLAY              0x01  // 1 = on
 
 struct display {
-  struct regs* cpu; // for interrupts
-  struct memory* mem; // for tile data & rendering
-
   uint8_t control;    // FF40
   uint8_t status;     // FF41
   uint8_t scy;        // FF42
@@ -30,6 +27,9 @@ struct display {
   uint8_t palette1;   // FF49
   uint8_t wy;         // FF4A
   uint8_t wx;         // FF4B
+
+  struct regs* cpu; // for interrupts
+  struct memory* mem; // for tile data & rendering
 
   int wait_vblank;
   uint64_t last_vblank_time;
