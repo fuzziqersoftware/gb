@@ -1,6 +1,6 @@
 CC=gcc
 OBJECTS=cpu.o mmu.o cart.o display.o serial.o main.o timer.o audio.o input.o debug.o terminal.o
-CFLAGS=-O0 -g -Wall -Wno-deprecated-declarations -Werror -DMACOSX
+CFLAGS=-O0 -g -Wall -Wno-deprecated-declarations -Werror
 EXECUTABLES=gb
 
 all: gb
