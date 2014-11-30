@@ -68,8 +68,27 @@ static void decode_tile(uint16_t* tile, uint8_t out[8][8]) {
   }
 }
 
+struct sprite_info {
+  uint8_t y;
+  uint8_t x;
+  uint8_t tile_id;
+  uint8_t flags;
+};
+
+#define SPRITE_FLAG_BEHIND_BG      0x80
+#define SPRITE_FLAG_YFLIP          0x40
+#define SPRITE_FLAG_XFLIP          0x20
+#define SPRITE_FLAG_USE_PALETTE1   0x10 // Non-CGB only
+#define SPRITE_FLAG_VRAM_BANK1     0x08 // CGB only
+
 static void display_generate_image(const struct display* d,
     uint8_t overall_image[256][256]) {
+
+  // if disabled, don't draw anything
+  if (!(d->control & 0x80))
+    return;
+
+  // TODO: this needs to be rewritten to only render the stuff that's visible
 
   int unsigned_tile_ids = d->control & LCD_CONTROL_BG_WINDOW_TILE_SELECT;
   uint16_t* tile_data_map = (uint16_t*)(unsigned_tile_ids ?
@@ -77,7 +96,8 @@ static void display_generate_image(const struct display* d,
   uint8_t* tile_id_map = (uint8_t*)((d->control & LCD_CONTROL_BG_TILEMAP_SELECT) ?
       ptr(d->mem, 0x9C00) : ptr(d->mem, 0x9800));
 
-  int tile_x, tile_y, x, y;
+  // draw background
+  int tile_x, tile_y, x, y, z;
   for (y = 0; y < 32; y++) {
     for (x = 0; x < 32; x++) {
 
@@ -92,6 +112,65 @@ static void display_generate_image(const struct display* d,
       for (tile_y = 0; tile_y < 8; tile_y++) {
         for (tile_x = 0; tile_x < 8; tile_x++) {
           overall_image[y * 8 + tile_y][x * 8 + tile_x] = tile_data[tile_y][tile_x];
+        }
+      }
+    }
+  }
+
+  // draw window
+  if (d->control & 0x20) {
+    // TODO
+  }
+
+  // draw sprites
+  if (d->control & 0x02) {
+    int sprite_ysize = (d->control & 0x04) ? 16 : 8;
+    uint16_t* tile_data_map = (uint16_t*)ptr(d->mem, 0x8000);
+
+    for (z = 0; z < 40; z++) {
+      struct sprite_info* sprite = (struct sprite_info*)ptr(d->mem, 0xFE00 + (4 * z));
+      if (sprite->y == 0 || sprite->y > 160 || sprite->x == 0 || sprite->x > 168)
+        continue;
+
+      int pixel_x = d->scx + sprite->x - 8;
+      int pixel_y = d->scy + sprite->y - 16;
+
+      uint8_t tile_data[16][8];
+      if (sprite_ysize == 16) {
+        uint16_t* this_tile_data = tile_data_map + (8 * (sprite->tile_id & 0xFE));
+        decode_tile(this_tile_data, &tile_data[0]);
+        this_tile_data = tile_data_map + (8 * (sprite->tile_id | 0x01));
+        decode_tile(this_tile_data, &tile_data[8]);
+      } else {
+        uint16_t* this_tile_data = tile_data_map + (8 * sprite->tile_id);
+        decode_tile(this_tile_data, &tile_data[0]);
+      }
+
+      if (sprite->flags & SPRITE_FLAG_XFLIP) {
+        for (y = 0; y < sprite_ysize; y++) {
+          for (x = 0; x < 4; x++) {
+            uint8_t t = tile_data[y][x];
+            tile_data[y][x] = tile_data[y][7 - x];
+            tile_data[y][7 - x] = t;
+          }
+        }
+      }
+
+      if (sprite->flags & SPRITE_FLAG_YFLIP) {
+        for (y = 0; y < sprite_ysize / 2; y++) {
+          for (x = 0; x < 7; x++) {
+            uint8_t t = tile_data[y][x];
+            tile_data[y][x] = tile_data[sprite_ysize - 1 - y][x];
+            tile_data[y][sprite_ysize - 1 - y] = t;
+          }
+        }
+      }
+
+      for (y = 0; y < sprite_ysize; y++) {
+        for (x = 0; x < 8; x++) {
+          if (!tile_data[y][x])
+            continue;
+          overall_image[(pixel_y + y) & 0xFF][(pixel_x + x) & 0xFF] = tile_data[y][x];
         }
       }
     }
@@ -177,12 +256,14 @@ void display_render_window_opengl(const struct display* d,
     {0.0f, 0.0f, 0.0f},
   };
 
+  int x_pixels = 160, y_pixels = 144;
+
   int x, y;
   float xf, yf;
-  float xfstep = (2.0f / 160.0f), yfstep = -(2.0f / 144.0f);
+  float xfstep = (2.0f / x_pixels), yfstep = -(2.0f / y_pixels);
   glBegin(GL_QUADS);
-  for (y = 0, yf = 1; y < 144; y++, yf += yfstep) {
-    for (x = 0, xf = -1; x < 160; x++, xf += xfstep) {
+  for (y = 0, yf = 1; y < y_pixels; y++, yf += yfstep) {
+    for (x = 0, xf = -1; x < x_pixels; x++, xf += xfstep) {
       int pixel_x = (x + d->scx) & 0xFF;
       int pixel_y = (y + d->scy) & 0xFF;
 
@@ -243,7 +324,7 @@ void display_update(struct display* d, uint64_t cycles) {
   uint64_t current_period_cycles = (d->control & 0x80) ? (cycles % LCD_CYCLES_PER_FRAME) : 70000;
   d->ly = current_period_cycles / 456;
 
-  int mode;
+  int mode, prev_mode = d->status & 0x03;
   if (d->ly < 144) {
     int current_hblank_cycles = current_period_cycles % 456;
     if (current_hblank_cycles < 204)
@@ -254,6 +335,7 @@ void display_update(struct display* d, uint64_t cycles) {
       mode = 0; // hblank
   } else
     mode = 1; // vblank or display disabled
+  d->status = (d->status & ~3) | mode;
 
   if ((prev_ly > 0) && (d->ly == 0)) {
     int frame_num = cycles / LCD_CYCLES_PER_FRAME;
@@ -284,6 +366,16 @@ void display_update(struct display* d, uint64_t cycles) {
     }
   }
 
+  // check for interrupts
+  if (prev_mode != mode) {
+    if ((mode == 0) && (d->status & 0x08)) // h-blank interrupt
+      signal_interrupt(d->cpu, INTERRUPT_LCDSTAT, 1);
+    if ((mode == 1) && (d->status & 0x10)) // v-blank interrupt
+      signal_interrupt(d->cpu, INTERRUPT_LCDSTAT, 1);
+    if ((mode == 2) && (d->status & 0x20)) // oam interrupt
+      signal_interrupt(d->cpu, INTERRUPT_LCDSTAT, 1);
+  }
+
   if (prev_ly != d->ly) {
     if (d->ly == d->lyc) {
       d->status |= 0x04;
@@ -292,7 +384,10 @@ void display_update(struct display* d, uint64_t cycles) {
     } else
       d->status &= ~0x04;
 
-    if ((d->status & 0x10) && (d->ly == 144))
+    // TODO: does the vblank interrupt always happen, or is it controlled by
+    // d->status & 0x10? if the latter, does d->status & 0x10 cause LCDSTAT or
+    // VBLANK?
+    if (d->ly == 144)
       signal_interrupt(d->cpu, INTERRUPT_VBLANK, 1);
   }
 }
@@ -332,19 +427,17 @@ void write_lcd_reg(struct display* d, uint8_t addr, uint8_t value) {
     case 0x41:
       // can't write the lower 3 bits
       d->status = (d->status & 7) | (value & 0x78);
-      if (d->status & 0x20)
-        fprintf(stderr, "warning: lcd oam interrupt enabled but not implemented\n");
-      if (d->status & 0x08)
-        fprintf(stderr, "warning: lcd hblank interrupt enabled but not implemented\n");
       fprintf(stderr, "lcd status: %02X\n", value);
       break;
 
     case 0x42:
       d->scy = value;
+      fprintf(stderr, "lcd scy: %02X\n", value);
       break;
 
     case 0x43:
       d->scx = value;
+      fprintf(stderr, "lcd scx: %02X\n", value);
       break;
 
     case 0x4A:
@@ -366,10 +459,13 @@ void write_lcd_reg(struct display* d, uint8_t addr, uint8_t value) {
       fprintf(stderr, "lcd lyc: %02X\n", d->lyc);
       break;
 
-    case 0x46:
-      signal_debug_interrupt(d->cpu, "lcd oam dma transfer unimplemented");
-      // TODO: DMA that shit
+    case 0x46: {
+      //fprintf(stderr, "lcd: sprite table dma from %02X00\n", value);
+      int x, addr = (value << 8);
+      for (x = 0; x < 0xA0; x++)
+        write8(d->mem, 0xFE00 + x, read8(d->mem, addr + x));
       break;
+    }
 
     case 0x47: {
       d->bg_palette = value;
