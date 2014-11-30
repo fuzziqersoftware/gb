@@ -1260,11 +1260,14 @@ int run_cycle(struct regs* r, const struct regs* prev, struct memory* m) {
         }
         if (r->ime) {
           // execute interrupt
-          printf("> interrupt! %d\n", x);
+          if (r->debug)
+            printf("> interrupt! %d\n", x);
           r->ime = 0;
           r->interrupt_flag &= ~(1 << x);
           stack_push(r, m, r->pc);
           r->pc = 0x40 + 8 * x;
+          if (r->debug)
+            print_regs(r, prev, m);
           break;
         }
       }
@@ -1298,6 +1301,19 @@ int run_cycle(struct regs* r, const struct regs* prev, struct memory* m) {
   return 0;
 }
 
+int run_cycles(struct regs* cpu, struct memory* mem, uint64_t num_cycles) {
+  struct regs prev;
+  memset(&prev, 0, sizeof(prev));
+  while (num_cycles && (!cpu->stop_after_cycles || (cpu->cycles < cpu->stop_after_cycles))) {
+    int err = run_cycle(cpu, &prev, mem);
+    if (err)
+      return err;
+    memcpy(&prev, cpu, sizeof(prev));
+    num_cycles--;
+  }
+  return 0;
+}
+
 int is_double_speed_mode(struct regs* r) {
   return !!(r->speed_switch & 0x80);
 }
@@ -1308,6 +1324,8 @@ void signal_interrupt(struct regs* r, int int_id, int signal) {
     r->interrupt_flag |= mask;
   else
     r->interrupt_flag &= ~mask;
+  if (r->debug)
+    fprintf(stderr, "> signal_interrupt %d %s\n", int_id, signal ? "raise" : "clear");
 }
 
 void signal_debug_interrupt(struct regs* r, const char* reason) {
@@ -1328,6 +1346,8 @@ inline uint8_t read_interrupt_enable(struct regs* r, uint8_t addr) {
 
 inline void write_interrupt_enable(struct regs* r, uint8_t addr, uint8_t value) {
   r->interrupt_enable = value;
+  if (r->debug)
+    fprintf(stderr, "> cpu: interrupt mask reset %02X\n", r->interrupt_flag);
 }
 
 uint8_t read_speed_switch(struct regs* r, uint8_t addr) {
@@ -1342,16 +1362,14 @@ struct regs* create_cpu() {
   struct regs* r = (struct regs*)malloc(sizeof(struct regs));
   if (!r)
     return NULL;
-  r->af = 0x01B0;
+  memset(r, 0, sizeof(struct regs));
+  r->af = 0x11B0;
   r->bc = 0x0013;
   r->de = 0x00D8;
   r->hl = 0x014D;
   r->sp = 0xFFFE;
   r->pc = 0x0100;
   r->ime = 1;
-  r->cycles = 0;
-  r->wait_for_interrupt = 0;
-  r->stop = 0;
   return r;
 }
 
@@ -1365,10 +1383,7 @@ const char* e_field_names[] = {"(bc)", "(de)", "(hl+)", "(hl-)"};
 const char* flag_field_names[] = {"nz", "z", "nc", "c"};
 const char* s_field_names[] = {"bc", "de", "hl", "af"};
 
-static int print_opcode(FILE* f, const uint8_t* opcode_data, struct memory* m) {
-
-  if (!f)
-    f = stdout;
+static int disassemble_opcode(char* out, const uint8_t* opcode_data, struct memory* m) {
 
   uint32_t opcode_offset = 0;
   uint8_t op = opcode_data[opcode_offset++];
@@ -1379,7 +1394,20 @@ static int print_opcode(FILE* f, const uint8_t* opcode_data, struct memory* m) {
   }
   opcode_def* def = &table[op];
 
-  fprintf(f, "%s", def->name);
+  int len;
+  if (!def->name) {
+    len = 3;
+    strcpy(out, "???");
+  } else {
+    len = strlen(def->name);
+    strcpy(out, def->name);
+  }
+  if (def->arg1_type == ARG_NONE)
+    return opcode_offset;
+
+  while (len < 5)
+    out[len++] = ' ';
+
   int x;
   uint8_t off;
   uint16_t addr;
@@ -1389,87 +1417,98 @@ static int print_opcode(FILE* f, const uint8_t* opcode_data, struct memory* m) {
         break;
       case ARG_R8:
         off = opcode_data[opcode_offset++];
-        fprintf(f, " %c%02X", (off & 0x80) ? '-' : '+', (off & 0x80) ? (-off & 0xFF) : off);
+        len += sprintf(&out[len], " %c%02X", (off & 0x80) ? '-' : '+', (off & 0x80) ? (-off & 0xFF) : off);
         break;
       case ARG_FLAG:
-        fprintf(f, " %s", flag_field_names[get_flag_field(op)]);
+        len += sprintf(&out[len], " %s", flag_field_names[get_flag_field(op)]);
         break;
       case ARG_R:
-        fprintf(f, " %s", r_field_names[get_r_field(op)]);
+        len += sprintf(&out[len], " %s", r_field_names[get_r_field(op)]);
         break;
       case ARG_D8:
-        fprintf(f, " %02X", opcode_data[opcode_offset++]);
+        len += sprintf(&out[len], " %02X", opcode_data[opcode_offset++]);
         break;
       case ARG_D16:
-        fprintf(f, " %04X", *(uint16_t*)&opcode_data[opcode_offset]);
+        len += sprintf(&out[len], " %04X", *(uint16_t*)&opcode_data[opcode_offset]);
         opcode_offset += 2;
         break;
       case ARG_E:
-        fprintf(f, " %s", e_field_names[get_e_field(op)]);
+        len += sprintf(&out[len], " %s", e_field_names[get_e_field(op)]);
         break;
       case ARG_X:
-        fprintf(f, " %s", x_field_names[get_x_field(op)]);
+        len += sprintf(&out[len], " %s", x_field_names[get_x_field(op)]);
         break;
       case ARG_A8IO:
-        fprintf(f, " (FF%02X)", opcode_data[opcode_offset]);
+        len += sprintf(&out[len], " (FF%02X)", opcode_data[opcode_offset]);
         if (m)
-          fprintf(f, " [%02X]", read8(m, 0xFF00 | opcode_data[opcode_offset]));
+          len += sprintf(&out[len], " [%02X]", read8(m, 0xFF00 | opcode_data[opcode_offset]));
         opcode_offset++;
         break;
       case ARG_A16:
-        fprintf(f, " %04X", *(uint16_t*)&opcode_data[opcode_offset]);
+        len += sprintf(&out[len], " %04X", *(uint16_t*)&opcode_data[opcode_offset]);
         opcode_offset += 2;
         break;
       case ARG_A16M:
         addr = *(uint16_t*)&opcode_data[opcode_offset];
-        fprintf(f, " (%04X)", addr);
+        len += sprintf(&out[len], " (%04X)", addr);
         if (m)
-          fprintf(f, " [%02X %02X]", read8(m, addr), read8(m, addr + 1));
+          len += sprintf(&out[len], " [%02X %02X]", read8(m, addr), read8(m, addr + 1));
         opcode_offset += 2;
         break;
       case ARG_A16S:
         addr = *(uint16_t*)&opcode_data[opcode_offset];
-        fprintf(f, " (%04X)", addr);
+        len += sprintf(&out[len], " (%04X)", addr);
         if (m)
-          fprintf(f, " [%02X]", read8(m, addr));
+          len += sprintf(&out[len], " [%02X]", read8(m, addr));
         opcode_offset += 2;
         break;
       case ARG_X2:
-        fprintf(f, " %s", x_field_names[get_x2_field(op)]);
+        len += sprintf(&out[len], " %s", x_field_names[get_x2_field(op)]);
         break;
       case ARG_Z:
-        fprintf(f, " %02X", get_z_field(op) << 3);
+        len += sprintf(&out[len], " %02X", get_z_field(op) << 3);
         break;
       case ARG_BIT:
-        fprintf(f, " %d", get_bit_field(op));
+        len += sprintf(&out[len], " %d", get_bit_field(op));
         break;
       case ARG_A:
-        fprintf(f, " a");
+        len += sprintf(&out[len], " a");
         break;
       case ARG_S:
-        fprintf(f, " %s", s_field_names[get_r_field(op)]);
+        len += sprintf(&out[len], " %s", s_field_names[get_r_field(op)]);
         break;
       case ARG_CIO:
-        fprintf(f, " (FF00+c)");
+        len += sprintf(&out[len], " (FF00+c)");
         break;
       case ARG_SPR8:
         off = opcode_data[opcode_offset++];
-        fprintf(f, " sp%c%02X", (off & 0x80) ? '-' : '+', (off & 0x80) ? (-off & 0xFF) : off);
+        len += sprintf(&out[len], " sp%c%02X", (off & 0x80) ? '-' : '+', (off & 0x80) ? (-off & 0xFF) : off);
         break;
       case ARG_SP:
-        fprintf(f, " sp");
+        len += sprintf(&out[len], " sp");
         break;
       case ARG_HLM:
-        fprintf(f, " (hl)");
+        len += sprintf(&out[len], " (hl)");
         break;
       case ARG_HL:
-        fprintf(f, " hl");
+        len += sprintf(&out[len], " hl");
         break;
       default:
-        fprintf(f, " unknown_argtype");
+        len += sprintf(&out[len], " unknown_argtype");
     }
   }
   return opcode_offset;
+}
+
+static int print_opcode(FILE* f, const uint8_t* opcode_data, struct memory* m) {
+
+  if (!f)
+    f = stdout;
+
+  char buffer[0x40];
+  int ret = disassemble_opcode(buffer, opcode_data, m);
+  fprintf(f, "%s", buffer);
+  return ret;
 }
 
 #define setup_color_if_true(cond) \
@@ -1543,8 +1582,28 @@ void disassemble(FILE* output_stream, void* data, uint32_t size, uint32_t offset
 
   uint32_t dasm_end = offset + dasm_size;
   while (offset < dasm_end) {
-    fprintf(output_stream, "%04X ", offset);
-    offset += print_opcode(output_stream, (uint8_t*)data + offset, NULL);
+
+    char buffer[0x40];
+    fprintf(output_stream, "%04X   ", offset);
+    int x, num_bytes = disassemble_opcode(buffer, (uint8_t*)data + offset, NULL);
+    for (x = 0; x < 3; x++) {
+      if (x < num_bytes)
+        fprintf(output_stream, "%02X ", ((uint8_t*)data)[offset++]);
+      else
+        fprintf(output_stream, "   ");
+    }
+    fprintf(output_stream, "  ");
+    for (x = 0; x < 3; x++) {
+      if (x < num_bytes) {
+        uint8_t value = ((uint8_t*)data)[offset++];
+        if (value < 0x20 || value > 0x7E)
+          fputc('?', output_stream);
+        else
+          fputc(value, output_stream);
+      } else
+        fputc(' ', output_stream);
+    }
+    fprintf(output_stream, "  %s", buffer);
     fprintf(output_stream, "\n");
   }
 }

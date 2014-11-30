@@ -6,9 +6,20 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#ifdef MACOSX
+#include "OpenGL/gl.h"
+#include "OpenGL/glu.h"
+#include "GLUT/glut.h"
+#else
+#include "GL/gl.h"
+#include "GL/glu.h"
+#include "GL/glut.h"
+#endif
+
 #include "display.h"
 #include "cpu.h"
 #include "mmu.h"
+#include "terminal.h"
 
 
 
@@ -27,14 +38,22 @@ void display_resume(struct display* d) {
 }
 
 void display_init(struct display* d, struct regs* cpu, struct memory* m,
-    uint64_t render_freq) {
+    uint64_t render_freq, int render_terminal, int render_opengl,
+    int use_terminal_graphics) {
 
   memset(d, 0, sizeof(*d));
   d->cpu = cpu;
   d->mem = m;
   d->render_freq = render_freq;
+  d->render_terminal = render_terminal;
+  d->render_opengl = render_opengl;
+  d->use_terminal_graphics = use_terminal_graphics;
   d->wait_vblank = 1;
   d->last_vblank_time = display_gettime_us();
+
+  int x;
+  for (x = 0; x < 0x20; x++)
+    d->bg_colors[x] = 0x7FFF;
 }
 
 static void decode_tile(uint16_t* tile, uint8_t out[8][8]) {
@@ -94,7 +113,7 @@ static void display_render(FILE* f, uint8_t overall_image[256][256],
   fputc('\n', f);
 }
 
-static void display_render_window(FILE* f, const struct display* d,
+void display_render_window_ascii(FILE* f, const struct display* d,
     uint8_t overall_image[256][256], const char* terminal_palette) {
 
   char output_buffer[168];
@@ -107,6 +126,78 @@ static void display_render_window(FILE* f, const struct display* d,
     fputs(output_buffer, f);
   }
   fputc('\n', f);
+}
+
+void display_render_window_color(FILE* f, const struct display* d,
+    uint8_t overall_image[256][256]) {
+
+  char output_buffer[4096];
+  int x, y;
+  for (y = 0; y < 72; y++) {
+
+    uint8_t top_color, current_top_color = 255;
+    uint8_t bottom_color, current_bottom_color = 255;
+    int line_offset = 0;
+    for (x = 0; x < 160; x++) {
+      int pixel_x = (x + d->scx) & 0xFF;
+      int pixel_y = ((y << 1) + d->scy);
+      bottom_color = overall_image[pixel_y & 0xFF][pixel_x];
+      top_color = overall_image[(pixel_y + 1) & 0xFF][pixel_x];
+
+      if (top_color != current_top_color || bottom_color != current_bottom_color) {
+        current_top_color = top_color;
+        current_bottom_color = bottom_color;
+        line_offset += write_change_color(&output_buffer[line_offset],
+            FORMAT_FG_BLACK + current_top_color,
+            FORMAT_BG_BLACK + current_bottom_color,
+            FORMAT_END);
+      }
+      output_buffer[line_offset++] = 0xE2;
+      output_buffer[line_offset++] = 0x96;
+      output_buffer[line_offset++] = 0x84;
+    }
+    line_offset += write_change_color(&output_buffer[line_offset],
+        FORMAT_NORMAL, FORMAT_END);
+    output_buffer[line_offset++] = '\n';
+    output_buffer[line_offset++] = 0;
+    fputs(output_buffer, f);
+  }
+  change_color(FORMAT_NORMAL, FORMAT_END);
+  fputc('\n', f);
+  fflush(f);
+}
+
+void display_render_window_opengl(const struct display* d,
+    uint8_t overall_image[256][256]) {
+
+  static float colors[][3] = {
+    {1.0f, 1.0f, 1.0f},
+    {0.3f, 0.3f, 0.3f},
+    {0.7f, 0.7f, 0.7f},
+    {0.0f, 0.0f, 0.0f},
+  };
+
+  int x, y;
+  float xf, yf;
+  float xfstep = (2.0f / 160.0f), yfstep = -(2.0f / 144.0f);
+  glBegin(GL_QUADS);
+  for (y = 0, yf = 1; y < 144; y++, yf += yfstep) {
+    for (x = 0, xf = -1; x < 160; x++, xf += xfstep) {
+      int pixel_x = (x + d->scx) & 0xFF;
+      int pixel_y = (y + d->scy) & 0xFF;
+
+      int color_id = (d->bg_palette >> (overall_image[pixel_y][pixel_x] << 1)) & 3;
+
+      glColor3f(colors[color_id][0], colors[color_id][1], colors[color_id][2]);
+      glVertex3f(xf, yf, 1.0f);
+      glVertex3f(xf + xfstep, yf, 1.0f);
+      glVertex3f(xf + xfstep, yf + yfstep, 1.0f);
+      glVertex3f(xf, yf + yfstep, 1.0f);
+    }
+  }
+  glEnd();
+
+  glutSwapBuffers();
 }
 
 void display_print(FILE* f, struct display* d) {
@@ -142,14 +233,14 @@ void display_print(FILE* f, struct display* d) {
   display_render(f, overall_image, terminal_palette);
 
   fprintf(f, "\n>>> screen image (at %d %d)\n", d->scx, d->scy);
-  display_render_window(f, d, overall_image, terminal_palette);
+  display_render_window_ascii(f, d, overall_image, terminal_palette);
 }
 
 void display_update(struct display* d, uint64_t cycles) {
 
   int prev_ly = d->ly;
 
-  uint64_t current_period_cycles = (d->control & 0x80) ? (cycles % 70224) : 70000;
+  uint64_t current_period_cycles = (d->control & 0x80) ? (cycles % LCD_CYCLES_PER_FRAME) : 70000;
   d->ly = current_period_cycles / 456;
 
   int mode;
@@ -165,11 +256,20 @@ void display_update(struct display* d, uint64_t cycles) {
     mode = 1; // vblank or display disabled
 
   if ((prev_ly > 0) && (d->ly == 0)) {
-    if (d->render_freq && ((cycles / 70224) % d->render_freq) == 0) {
-      const char* terminal_palette = "_!*@";
+    int frame_num = cycles / LCD_CYCLES_PER_FRAME;
+    if (d->render_freq && (frame_num % d->render_freq) == 0) {
+      if (frame_num == 1)
+        fprintf(stdout, "\033[s");
       uint8_t overall_image[256][256];
       display_generate_image(d, overall_image);
-      display_render_window(stdout, d, overall_image, terminal_palette);
+
+      if (d->render_terminal) {
+        if (d->use_terminal_graphics)
+          printf("\e[H");
+        display_render_window_color(stdout, d, overall_image);
+      }
+      if (d->render_opengl)
+        display_render_window_opengl(d, overall_image);
     }
 
     if (d->wait_vblank) {
@@ -184,20 +284,40 @@ void display_update(struct display* d, uint64_t cycles) {
     }
   }
 
-  if (d->ly == d->lyc) {
-    d->status |= 0x04;
-    if (d->status & 0x40)
-      signal_interrupt(d->cpu, INTERRUPT_LCDSTAT, 1);
-  } else
-    d->status &= ~0x04;
+  if (prev_ly != d->ly) {
+    if (d->ly == d->lyc) {
+      d->status |= 0x04;
+      if (d->status & 0x40)
+        signal_interrupt(d->cpu, INTERRUPT_LCDSTAT, 1);
+    } else
+      d->status &= ~0x04;
 
-  if ((d->status & 0x10) && (d->ly == 144))
-    signal_interrupt(d->cpu, INTERRUPT_VBLANK, 1);
+    if ((d->status & 0x10) && (d->ly == 144))
+      signal_interrupt(d->cpu, INTERRUPT_VBLANK, 1);
+  }
 }
 
 uint8_t read_lcd_reg(struct display* d, uint8_t addr) {
-  uint8_t value = (&d->control)[addr - 0x40];
-  return value;
+  switch (addr) {
+    case 0x68:
+      return d->bg_color_palette_index;
+
+    case 0x69:
+      return d->bg_color_palette[d->bg_color_palette_index & 0x3F];
+
+    case 0x6A:
+      return d->sprite_color_palette_index;
+
+    case 0x6B:
+      return d->sprite_color_palette[d->sprite_color_palette_index & 0x3F];
+
+    default:
+      if (addr < 0x40 || addr > 0x4B) {
+        signal_debug_interrupt(d->cpu, "read from unimplemented display register");
+        return 0;
+      }
+      return (&d->control)[addr - 0x40];
+  }
 }
 
 void write_lcd_reg(struct display* d, uint8_t addr, uint8_t value) {
@@ -216,16 +336,15 @@ void write_lcd_reg(struct display* d, uint8_t addr, uint8_t value) {
         fprintf(stderr, "warning: lcd oam interrupt enabled but not implemented\n");
       if (d->status & 0x08)
         fprintf(stderr, "warning: lcd hblank interrupt enabled but not implemented\n");
+      fprintf(stderr, "lcd status: %02X\n", value);
       break;
 
     case 0x42:
       d->scy = value;
-      fprintf(stderr, "lcd yscroll: %02X\n", value);
       break;
 
     case 0x43:
       d->scx = value;
-      fprintf(stderr, "lcd xscroll: %02X\n", value);
       break;
 
     case 0x4A:
@@ -240,6 +359,11 @@ void write_lcd_reg(struct display* d, uint8_t addr, uint8_t value) {
 
     case 0x44:
       fprintf(stderr, "lcd: attempted to write ly %02X (skipped)\n", value);
+      break;
+
+    case 0x45:
+      d->lyc = value;
+      fprintf(stderr, "lcd lyc: %02X\n", d->lyc);
       break;
 
     case 0x46:
@@ -277,6 +401,32 @@ void write_lcd_reg(struct display* d, uint8_t addr, uint8_t value) {
       for (x = 0; x < 4; x++)
         fprintf(stderr, "%d", (d->palette1 >> (x << 1)) & 3);
       fprintf(stderr, "]\n");
+      break;
+    }
+
+    case 0x68:
+      d->bg_color_palette_index = value & 0xBF;
+      break;
+    case 0x69: {
+      d->bg_color_palette[d->bg_color_palette_index & 0x3F] = value;
+      int color_index = (d->bg_color_palette_index >> 1) & 0x1F;
+      fprintf(stderr, "lcd: bg palette %d set to %04hX\n", color_index,
+          d->bg_colors[color_index]);
+      if (d->bg_color_palette_index & 0x80)
+        d->bg_color_palette_index = (d->bg_color_palette_index + 1) & 0xBF;
+      break;
+    }
+
+    case 0x6A:
+      d->sprite_color_palette_index = value & 0xBF;
+      break;
+    case 0x6B: {
+      d->sprite_color_palette[d->sprite_color_palette_index & 0x3F] = value;
+      int color_index = (d->sprite_color_palette_index >> 1) & 0x1F;
+      fprintf(stderr, "lcd: sprite palette %d set to %04hX\n", color_index,
+          d->sprite_colors[color_index]);
+      if (d->sprite_color_palette_index & 0x80)
+        d->sprite_color_palette_index = (d->sprite_color_palette_index + 1) & 0xBF;
       break;
     }
 

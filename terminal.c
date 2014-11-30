@@ -41,6 +41,37 @@ void set_fd_blocking(int fd, int blocking) {
   fcntl(fd, F_SETFL, flags);
 }
 
+void set_terminal_graphics(int graphics_mode) {
+  static int graphics_mode_enabled = 0;
+  if (graphics_mode == graphics_mode_enabled)
+    return;
+
+  graphics_mode_enabled = graphics_mode;
+  if (graphics_mode_enabled)
+    printf("\e[?25l\e[2J");
+  else
+    printf("\e[2J\e[?25h\e[m");
+}
+
+int write_change_color(char* fmt, int color, ...) {
+  fmt[0] = '\033';
+  int fmt_len = 1;
+
+  va_list va;
+  va_start(va, color);
+  do {
+    fmt[fmt_len] = (fmt_len == 1) ? '[' : ';';
+    fmt_len++;
+    fmt_len += sprintf(&fmt[fmt_len], "%d", color);
+    color = va_arg(va, int);
+  } while (color != FORMAT_END);
+  va_end(va);
+
+  fmt[fmt_len] = 'm';
+  fmt[fmt_len + 1] = 0;
+  return fmt_len + 1;
+}
+
 void change_color(int color, ...) {
 
   char fmt[0x40] = "\033";
@@ -49,7 +80,7 @@ void change_color(int color, ...) {
   va_list va;
   va_start(va, color);
   do {
-    fmt[fmt_len] = (fmt[fmt_len - 1] == '\033') ? '[' : ';';
+    fmt[fmt_len] = (fmt_len == 1) ? '[' : ';';
     fmt_len++;
     fmt_len += sprintf(&fmt[fmt_len], "%d", color);
     color = va_arg(va, int);

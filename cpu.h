@@ -50,6 +50,7 @@ struct regs {
   uint8_t speed_switch;
 
   uint64_t cycles;
+  uint64_t stop_after_cycles;
 
   uint8_t wait_for_interrupt;
   uint8_t stop;
@@ -59,6 +60,7 @@ struct regs {
 };
 
 int run_cycle(struct regs* r, const struct regs* prev, struct memory* m);
+int run_cycles(struct regs* r, struct memory* m, uint64_t num_cycles);
 int is_double_speed_mode(struct regs* r);
 
 void signal_interrupt(struct regs* r, int int_id, int signal);

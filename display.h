@@ -14,6 +14,8 @@
 #define LCD_CONTROL_SPRITES_ENABLE          0x02  // 1 = on
 #define LCD_CONTROL_BG_DISPLAY              0x01  // 1 = on
 
+#define LCD_CYCLES_PER_FRAME   70224
+
 struct display {
   uint8_t control;    // FF40
   uint8_t status;     // FF41
@@ -27,6 +29,17 @@ struct display {
   uint8_t palette1;   // FF49
   uint8_t wy;         // FF4A
   uint8_t wx;         // FF4B
+  uint8_t bg_color_palette_index; // FF68
+  uint8_t sprite_color_palette_index; // FF6A
+
+  union {
+    uint8_t bg_color_palette[0x40];
+    uint16_t bg_colors[0x20];
+  };
+  union {
+    uint8_t sprite_color_palette[0x40];
+    uint16_t sprite_colors[0x20];
+  };
 
   struct regs* cpu; // for interrupts
   struct memory* mem; // for tile data & rendering
@@ -35,10 +48,14 @@ struct display {
   uint64_t last_vblank_time;
   uint64_t pause_time;
   uint64_t render_freq;
+  int render_terminal;
+  int render_opengl;
+  int use_terminal_graphics;
 };
 
 void display_init(struct display* d, struct regs* cpu, struct memory* m,
-    uint64_t render_freq);
+    uint64_t render_freq, int render_terminal, int render_opengl,
+    int use_terminal_graphics);
 void display_print(FILE* f, struct display* d);
 
 void display_pause(struct display* d);

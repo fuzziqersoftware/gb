@@ -35,8 +35,25 @@ int input_read_byte(int fd) {
   return data;
 }
 
+void input_key_press(struct input* i, int key) {
+  if (i->keys_pressed & key)
+    return;
+
+  fprintf(stderr, "input: key %02X pressed\n", key);
+  i->keys_pressed |= key;
+  signal_interrupt(i->cpu, INTERRUPT_JOYPAD, 1);
+}
+
+void input_key_release(struct input* i, int key) {
+  if (!(i->keys_pressed & key))
+    return;
+
+  fprintf(stderr, "input: key %02X released\n", key);
+  i->keys_pressed &= ~key;
+}
+
 void input_update(struct input* i, uint64_t cycles) {
-  if (cycles % i->update_frequency)
+  if (!i->update_frequency || (cycles % i->update_frequency))
     return;
 
   i->keys_pressed = 0;
@@ -56,23 +73,23 @@ void input_update(struct input* i, uint64_t cycles) {
       signal_debug_interrupt(i->cpu, "requested by user");
     if ((x < 13) && (data[x] == 0x1B) && (data[x + 1] == 0x5B)) {
       if (data[x + 2] == 'A')
-        i->keys_pressed |= KEY_UP;
+        input_key_press(i, KEY_UP);
       if (data[x + 2] == 'B')
-        i->keys_pressed |= KEY_DOWN;
+        input_key_press(i, KEY_DOWN);
       if (data[x + 2] == 'C')
-        i->keys_pressed |= KEY_RIGHT;
+        input_key_press(i, KEY_RIGHT);
       if (data[x + 2] == 'D')
-        i->keys_pressed |= KEY_LEFT;
+        input_key_press(i, KEY_LEFT);
       x += 2;
     } else {
     	if (data[x] == ' ')
-    		i->keys_pressed |= KEY_A;
+        input_key_press(i, KEY_A);
     	if (data[x] == '\n')
-    		i->keys_pressed |= KEY_START;
+        input_key_press(i, KEY_START);
     	if (data[x] == '\t')
-    		i->keys_pressed |= KEY_B;
+        input_key_press(i, KEY_B);
     	if (data[x] == 'Z')
-    		i->keys_pressed |= KEY_SELECT;
+        input_key_press(i, KEY_SELECT);
     }
   }
   if (i->keys_pressed)

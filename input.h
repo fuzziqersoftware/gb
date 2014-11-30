@@ -33,4 +33,7 @@ void input_update(struct input* i, uint64_t cycles);
 uint8_t read_input_register(struct input* i, uint8_t addr);
 void write_input_register(struct input* i, uint8_t addr, uint8_t value);
 
+void input_key_press(struct input* i, int key);
+void input_key_release(struct input* i, int key);
+
 #endif // INPUT_H
