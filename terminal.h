@@ -26,15 +26,8 @@
 #define FORMAT_BG_GRAY     47
 #define FORMAT_BG_WHITE    48
 
-void reset_terminal_settings();
-void set_terminal_raw();
-void set_fd_blocking(int fd, int blocking);
-
 int write_change_color(char* fmt, int color, ...);
 void change_color(int color, ...);
-
-void set_terminal_graphics(int graphics_mode);
-void clear_terminal();
 
 void print_data(FILE* out, uint64_t address, const void* _data, uint64_t data_size);
 

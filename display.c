@@ -19,9 +19,6 @@
 #include "display.h"
 #include "cpu.h"
 #include "mmu.h"
-#include "terminal.h"
-
-
 
 static uint64_t display_gettime_us() {
   struct timeval tv;
@@ -38,16 +35,12 @@ void display_resume(struct display* d) {
 }
 
 void display_init(struct display* d, struct regs* cpu, struct memory* m,
-    uint64_t render_freq, int render_terminal, int render_opengl,
-    int use_terminal_graphics) {
+    uint64_t render_freq) {
 
   memset(d, 0, sizeof(*d));
   d->cpu = cpu;
   d->mem = m;
   d->render_freq = render_freq;
-  d->render_terminal = render_terminal;
-  d->render_opengl = render_opengl;
-  d->use_terminal_graphics = use_terminal_graphics;
   d->wait_vblank = 1;
   d->last_vblank_time = display_gettime_us();
 
@@ -81,14 +74,18 @@ struct sprite_info {
 #define SPRITE_FLAG_USE_PALETTE1   0x10 // Non-CGB only
 #define SPRITE_FLAG_VRAM_BANK1     0x08 // CGB only
 
-static void display_generate_image(const struct display* d,
-    uint8_t overall_image[256][256]) {
+static void display_update_line(struct display* d, int y) {
 
   // if disabled, don't draw anything
   if (!(d->control & 0x80))
     return;
 
-  // TODO: this needs to be rewritten to only render the stuff that's visible
+  static float colors[][3] = {
+    {1.0f, 1.0f, 1.0f},
+    {0.3f, 0.3f, 0.3f},
+    {0.7f, 0.7f, 0.7f},
+    {0.0f, 0.0f, 0.0f},
+  };
 
   int unsigned_tile_ids = d->control & LCD_CONTROL_BG_WINDOW_TILE_SELECT;
   uint16_t* tile_data_map = (uint16_t*)(unsigned_tile_ids ?
@@ -97,24 +94,30 @@ static void display_generate_image(const struct display* d,
       ptr(d->mem, 0x9C00) : ptr(d->mem, 0x9800));
 
   // draw background
-  int tile_x, tile_y, x, y, z;
-  for (y = 0; y < 32; y++) {
-    for (x = 0; x < 32; x++) {
+  int x, z;
+  int tile_y = ((y + d->scy) & 0xFF) / 8;
+  int tile_pixel_y = (y + d->scy) % 8;
+  int decoded_tile_id = -1;
+  uint8_t tile_data[8][8];
 
-      int tile_id = tile_id_map[y * 32 + x];
-      if (!unsigned_tile_ids && tile_id > 127)
-        tile_id -= 256;
+  for (x = 0; x < 160; x++) {
+    int tile_x = ((x + d->scx) & 0xFF) / 8;
+    int tile_pixel_x = (x + d->scx) % 8;
+    int tile_id = tile_id_map[tile_y * 32 + tile_x];
+    if (!unsigned_tile_ids && tile_id > 127)
+      tile_id -= 256;
+
+    if (decoded_tile_id != tile_id) {
       uint16_t* this_tile_data = tile_data_map + (8 * tile_id);
-
-      uint8_t tile_data[8][8];
       decode_tile(this_tile_data, tile_data);
-
-      for (tile_y = 0; tile_y < 8; tile_y++) {
-        for (tile_x = 0; tile_x < 8; tile_x++) {
-          overall_image[y * 8 + tile_y][x * 8 + tile_x] = tile_data[tile_y][tile_x];
-        }
-      }
+      decoded_tile_id = tile_id;
     }
+
+    int color_id = tile_data[tile_pixel_y][tile_pixel_x];
+    d->image_color_ids[y][x] = color_id;
+    d->image[y][x][0] = colors[color_id][0];
+    d->image[y][x][1] = colors[color_id][1];
+    d->image[y][x][2] = colors[color_id][2];
   }
 
   // draw window
@@ -127,13 +130,20 @@ static void display_generate_image(const struct display* d,
     int sprite_ysize = (d->control & 0x04) ? 16 : 8;
     uint16_t* tile_data_map = (uint16_t*)ptr(d->mem, 0x8000);
 
+    const struct sprite_info* sprites = (struct sprite_info*)ptr(d->mem, 0xFE00);
     for (z = 0; z < 40; z++) {
-      struct sprite_info* sprite = (struct sprite_info*)ptr(d->mem, 0xFE00 + (4 * z));
-      if (sprite->y == 0 || sprite->y > 160 || sprite->x == 0 || sprite->x > 168)
-        continue;
+      const struct sprite_info* sprite = &sprites[z];
 
-      int pixel_x = d->scx + sprite->x - 8;
-      int pixel_y = d->scy + sprite->y - 16;
+      int sprite_x = sprite->x - 8;
+      int sprite_y = sprite->y - 16;
+      int line_id = y - sprite_y;
+
+      // skip if not visible
+      if (line_id < 0 ||
+          line_id >= sprite_ysize ||
+          sprite_x < -7 ||
+          sprite_x >= 160)
+        continue;
 
       uint8_t tile_data[16][8];
       if (sprite_ysize == 16) {
@@ -146,130 +156,55 @@ static void display_generate_image(const struct display* d,
         decode_tile(this_tile_data, &tile_data[0]);
       }
 
+      if (sprite->flags & SPRITE_FLAG_USE_PALETTE1) {
+        fprintf(stderr, "lcd: warning: rendering sprite (%02X %02X %02X %02X) using palette1 not implemented\n",
+            sprite->y, sprite->x, sprite->tile_id, sprite->flags);
+      }
+      if (sprite->flags & SPRITE_FLAG_VRAM_BANK1) {
+        fprintf(stderr, "lcd: warning: rendering sprite (%02X %02X %02X %02X) from vram1 not implemented\n",
+            sprite->y, sprite->x, sprite->tile_id, sprite->flags);
+      }
+
+      if (sprite->flags & SPRITE_FLAG_YFLIP)
+        line_id = sprite_ysize - 1 - line_id;
       if (sprite->flags & SPRITE_FLAG_XFLIP) {
-        for (y = 0; y < sprite_ysize; y++) {
-          for (x = 0; x < 4; x++) {
-            uint8_t t = tile_data[y][x];
-            tile_data[y][x] = tile_data[y][7 - x];
-            tile_data[y][7 - x] = t;
-          }
+        for (x = 0; x < 4; x++) {
+          uint8_t t = tile_data[line_id][x];
+          tile_data[line_id][x] = tile_data[line_id][7 - x];
+          tile_data[line_id][7 - x] = t;
         }
       }
 
-      if (sprite->flags & SPRITE_FLAG_YFLIP) {
-        for (y = 0; y < sprite_ysize / 2; y++) {
-          for (x = 0; x < 7; x++) {
-            uint8_t t = tile_data[y][x];
-            tile_data[y][x] = tile_data[sprite_ysize - 1 - y][x];
-            tile_data[y][sprite_ysize - 1 - y] = t;
-          }
-        }
-      }
+      for (x = 0; x < 8; x++) {
+        int target_x = sprite_x + x;
+        if (target_x < 0 || target_x >= 160)
+          continue;
 
-      for (y = 0; y < sprite_ysize; y++) {
-        for (x = 0; x < 8; x++) {
-          if (!tile_data[y][x])
-            continue;
-          overall_image[(pixel_y + y) & 0xFF][(pixel_x + x) & 0xFF] = tile_data[y][x];
-        }
+        if ((sprite->flags & SPRITE_FLAG_BEHIND_BG) && d->image_color_ids[y][target_x])
+          continue;
+        if (!tile_data[line_id][x])
+          continue;
+        int color_id = tile_data[line_id][x];
+        d->image_color_ids[y][target_x] = color_id;
+        d->image[y][target_x][0] = colors[color_id][0];
+        d->image[y][target_x][1] = colors[color_id][1];
+        d->image[y][target_x][2] = colors[color_id][2];
       }
     }
   }
 }
 
-static void display_render(FILE* f, uint8_t overall_image[256][256],
-    const char* terminal_palette) {
+void display_render_window_opengl(const struct display* d) {
 
-  char output_buffer[264];
-  int x, y;
-  for (y = 0; y < 256; y++) {
-    int line_offset = 0;
-    for (x = 0; x < 256; x++)
-      output_buffer[line_offset++] = terminal_palette[overall_image[y][x]];
-    output_buffer[line_offset++] = '\n';
-    fputs(output_buffer, f);
-  }
-  fputc('\n', f);
-}
-
-void display_render_window_ascii(FILE* f, const struct display* d,
-    uint8_t overall_image[256][256], const char* terminal_palette) {
-
-  char output_buffer[168];
-  int x, y;
-  for (y = 0; y < 144; y++) {
-    int line_offset = 0;
-    for (x = 0; x < 160; x++)
-      output_buffer[line_offset++] = terminal_palette[overall_image[(y + d->scy) % 256][(x + d->scx) % 256]];
-    output_buffer[line_offset++] = '\n';
-    fputs(output_buffer, f);
-  }
-  fputc('\n', f);
-}
-
-void display_render_window_color(FILE* f, const struct display* d,
-    uint8_t overall_image[256][256]) {
-
-  char output_buffer[4096];
-  int x, y;
-  for (y = 0; y < 72; y++) {
-
-    uint8_t top_color, current_top_color = 255;
-    uint8_t bottom_color, current_bottom_color = 255;
-    int line_offset = 0;
-    for (x = 0; x < 160; x++) {
-      int pixel_x = (x + d->scx) & 0xFF;
-      int pixel_y = ((y << 1) + d->scy);
-      bottom_color = overall_image[pixel_y & 0xFF][pixel_x];
-      top_color = overall_image[(pixel_y + 1) & 0xFF][pixel_x];
-
-      if (top_color != current_top_color || bottom_color != current_bottom_color) {
-        current_top_color = top_color;
-        current_bottom_color = bottom_color;
-        line_offset += write_change_color(&output_buffer[line_offset],
-            FORMAT_FG_BLACK + current_top_color,
-            FORMAT_BG_BLACK + current_bottom_color,
-            FORMAT_END);
-      }
-      output_buffer[line_offset++] = 0xE2;
-      output_buffer[line_offset++] = 0x96;
-      output_buffer[line_offset++] = 0x84;
-    }
-    line_offset += write_change_color(&output_buffer[line_offset],
-        FORMAT_NORMAL, FORMAT_END);
-    output_buffer[line_offset++] = '\n';
-    output_buffer[line_offset++] = 0;
-    fputs(output_buffer, f);
-  }
-  change_color(FORMAT_NORMAL, FORMAT_END);
-  fputc('\n', f);
-  fflush(f);
-}
-
-void display_render_window_opengl(const struct display* d,
-    uint8_t overall_image[256][256]) {
-
-  static float colors[][3] = {
-    {1.0f, 1.0f, 1.0f},
-    {0.3f, 0.3f, 0.3f},
-    {0.7f, 0.7f, 0.7f},
-    {0.0f, 0.0f, 0.0f},
-  };
-
-  int x_pixels = 160, y_pixels = 144;
+  static const int x_pixels = 160, y_pixels = 144;
+  static const float xfstep = (2.0f / x_pixels), yfstep = -(2.0f / y_pixels);
 
   int x, y;
   float xf, yf;
-  float xfstep = (2.0f / x_pixels), yfstep = -(2.0f / y_pixels);
   glBegin(GL_QUADS);
   for (y = 0, yf = 1; y < y_pixels; y++, yf += yfstep) {
     for (x = 0, xf = -1; x < x_pixels; x++, xf += xfstep) {
-      int pixel_x = (x + d->scx) & 0xFF;
-      int pixel_y = (y + d->scy) & 0xFF;
-
-      int color_id = (d->bg_palette >> (overall_image[pixel_y][pixel_x] << 1)) & 3;
-
-      glColor3f(colors[color_id][0], colors[color_id][1], colors[color_id][2]);
+      glColor3f(d->image[y][x][0], d->image[y][x][1], d->image[y][x][2]);
       glVertex3f(xf, yf, 1.0f);
       glVertex3f(xf + xfstep, yf, 1.0f);
       glVertex3f(xf + xfstep, yf + yfstep, 1.0f);
@@ -306,15 +241,6 @@ void display_print(FILE* f, struct display* d) {
       fputc('\n', f);
     }
   }
-
-  fprintf(f, "\n>>> full rendered image\n");
-
-  uint8_t overall_image[256][256];
-  display_generate_image(d, overall_image);
-  display_render(f, overall_image, terminal_palette);
-
-  fprintf(f, "\n>>> screen image (at %d %d)\n", d->scx, d->scy);
-  display_render_window_ascii(f, d, overall_image, terminal_palette);
 }
 
 void display_update(struct display* d, uint64_t cycles) {
@@ -339,20 +265,8 @@ void display_update(struct display* d, uint64_t cycles) {
 
   if ((prev_ly > 0) && (d->ly == 0)) {
     int frame_num = cycles / LCD_CYCLES_PER_FRAME;
-    if (d->render_freq && (frame_num % d->render_freq) == 0) {
-      if (frame_num == 1)
-        fprintf(stdout, "\033[s");
-      uint8_t overall_image[256][256];
-      display_generate_image(d, overall_image);
-
-      if (d->render_terminal) {
-        if (d->use_terminal_graphics)
-          printf("\e[H");
-        display_render_window_color(stdout, d, overall_image);
-      }
-      if (d->render_opengl)
-        display_render_window_opengl(d, overall_image);
-    }
+    if (d->render_freq && (frame_num % d->render_freq) == 0)
+      display_render_window_opengl(d);
 
     if (d->wait_vblank) {
       // 16750 us/frame = 59.7 frames/sec
@@ -368,6 +282,8 @@ void display_update(struct display* d, uint64_t cycles) {
 
   // check for interrupts
   if (prev_mode != mode) {
+    if (mode == 0) // on hblank, draw a line
+      display_update_line(d, d->ly);
     if ((mode == 0) && (d->status & 0x08)) // h-blank interrupt
       signal_interrupt(d->cpu, INTERRUPT_LCDSTAT, 1);
     if ((mode == 1) && (d->status & 0x10)) // v-blank interrupt
@@ -420,8 +336,7 @@ void write_lcd_reg(struct display* d, uint8_t addr, uint8_t value) {
   switch (addr) {
     case 0x40:
       d->control = value;
-      fprintf(stderr, "lcd control: %02X (%s)\n", value,
-          (value & LCD_CONTROL_ENABLE) ? "enabled" : "disabled");
+      fprintf(stderr, "lcd control: %02X\n", value);
       break;
 
     case 0x41:
@@ -432,12 +347,10 @@ void write_lcd_reg(struct display* d, uint8_t addr, uint8_t value) {
 
     case 0x42:
       d->scy = value;
-      fprintf(stderr, "lcd scy: %02X\n", value);
       break;
 
     case 0x43:
       d->scx = value;
-      fprintf(stderr, "lcd scx: %02X\n", value);
       break;
 
     case 0x4A:

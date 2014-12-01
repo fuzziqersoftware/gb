@@ -26,8 +26,6 @@
 #include "GL/glut.h"
 #endif
 
-extern int terminal_fd;
-
 struct hardware {
   struct display lcd;
   struct serial ser;
@@ -96,12 +94,6 @@ static void opengl_idle_cb() {
   glutPostRedisplay();
 }
 
-static void sigint_handler(int signum) {
-  set_terminal_graphics(0);
-  fprintf(stderr, "> interrupted\n");
-  exit(1);
-}
-
 int main(int argc, char* argv[]) {
 
   if (argc < 2) {
@@ -111,8 +103,7 @@ int main(int argc, char* argv[]) {
 
   const char* rom_file_name = NULL;
   int debug = 0, do_disassemble = 0, use_debug_cart = 0, fd = 0,
-      wait_vblank = 0, modify_terminal_settings = 1, render_freq = 1,
-      use_terminal_graphics = 1, opengl_scale = 0;
+      wait_vblank = 0, render_freq = 1, opengl_scale = 1;
   int32_t breakpoint_addr = -1, watchpoint_addr = -1, write_breakpoint_addr = -1, memory_watchpoint_addr = -1;
   uint64_t stop_after_cycles = 0;
   int x;
@@ -138,22 +129,14 @@ int main(int argc, char* argv[]) {
         wait_vblank = 1;
       else if (!strcmp(argv[x], "--disable-input"))
         fd = -1;
-      else if (!strcmp(argv[x], "--no-terminal-input"))
-        modify_terminal_settings = 0;
-      else if (!strcmp(argv[x], "--no-terminal-graphics"))
-        use_terminal_graphics = 0;
-      else if (!strncmp(argv[x], "--opengl-scale=", 15)) {
+      else if (!strncmp(argv[x], "--opengl-scale=", 15))
         sscanf(&argv[x][15], "%d", &opengl_scale);
-        modify_terminal_settings = 0;
-        use_terminal_graphics = 0;
-      } else if (!strncmp(argv[x], "--stop-cycles=", 14))
+      else if (!strncmp(argv[x], "--stop-cycles=", 14))
         sscanf(&argv[x][14], "%016llX", &stop_after_cycles);
     } else {
       rom_file_name = argv[x];
     }
   }
-
-  signal(SIGINT, sigint_handler);
 
   if (use_debug_cart) {
     fprintf(stderr, "creating debug cart\n");
@@ -199,8 +182,7 @@ int main(int argc, char* argv[]) {
   // initialize devices
   hw.cpu->debug = debug;
   hw.cpu->ddx = memory_watchpoint_addr;
-  display_init(&hw.lcd, hw.cpu, hw.mem, render_freq,
-      opengl_scale ? 0 : 1, opengl_scale ? 1 : 0, use_terminal_graphics);
+  display_init(&hw.lcd, hw.cpu, hw.mem, render_freq);
   serial_init(&hw.ser, hw.cpu);
   timer_init(&hw.tim, hw.cpu);
   audio_init(&hw.aud, hw.cpu);
@@ -215,52 +197,20 @@ int main(int argc, char* argv[]) {
   add_device(hw.mem, DEVICE_CPU, hw.cpu);
   add_device(hw.mem, DEVICE_INPUT, &hw.inp);
 
-  // set input fd
-  if (!opengl_scale) {
-    hw.inp.update_frequency = 10000;
-    hw.inp.fd = fd;
-    if (fd >= 0) {
-      if (!isatty(fd))
-        fprintf(stderr, "warning: input device is not a terminal\n");
-      else if (modify_terminal_settings) {
-        terminal_fd = fd;
-        set_terminal_raw();
-      }
-    } else
-      fprintf(stderr, "warning: input is disabled\n");
-  }
+  // setup opengl
+  opengl_init();
+  opengl_create_window(160 * opengl_scale, 144 * opengl_scale, "gb");
 
-  set_terminal_graphics(use_terminal_graphics);
-  if (opengl_scale) {
-    opengl_init();
-    opengl_create_window(160 * opengl_scale, 144 * opengl_scale, "gb");
+  glutDisplayFunc(opengl_display_cb);
+  glutKeyboardFunc(opengl_key_press_cb);
+  glutKeyboardUpFunc(opengl_key_release_cb);
+  glutSpecialFunc(opengl_special_key_press_cb);
+  glutSpecialUpFunc(opengl_special_key_release_cb);
+  glutIdleFunc(opengl_idle_cb);
 
-    glutDisplayFunc(opengl_display_cb);
-    glutKeyboardFunc(opengl_key_press_cb);
-    glutKeyboardUpFunc(opengl_key_release_cb);
-    glutSpecialFunc(opengl_special_key_press_cb);
-    glutSpecialUpFunc(opengl_special_key_release_cb);
-    glutIdleFunc(opengl_idle_cb);
+  glutMainLoop();
 
-    glutMainLoop();
-
-  } else {
-    // go go gadget
-    struct regs prev;
-    memset(&prev, 0, sizeof(prev));
-    while ((!hw.cpu->stop_after_cycles || (hw.cpu->cycles < hw.cpu->stop_after_cycles)) && (hw.cpu->pc != breakpoint_addr)) {
-      run_cycle(hw.cpu, &prev, hw.mem);
-      if (hw.cpu->pc == watchpoint_addr)
-        getchar();
-      memcpy(&prev, hw.cpu, sizeof(prev));
-    }
-
-    while ((!hw.cpu->stop_after_cycles || (hw.cpu->cycles < hw.cpu->stop_after_cycles)) && getchar()) {
-      run_cycle(hw.cpu, &prev, hw.mem);
-      memcpy(&prev, hw.cpu, sizeof(prev));
-    }
-  }
-
+  // clean up
   delete_memory(hw.mem);
   delete_cart(hw.cart);
   return 0;

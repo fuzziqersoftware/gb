@@ -25,7 +25,6 @@ int input_read_byte(int fd) {
   select(fd + 1, &fds, NULL, NULL, &tv);
 
   if (!FD_ISSET(fd, &fds)) {
-    //fprintf(stderr, "input: no data to read\n");
     return -1;
   }
 
@@ -39,7 +38,6 @@ void input_key_press(struct input* i, int key) {
   if (i->keys_pressed & key)
     return;
 
-  fprintf(stderr, "input: key %02X pressed\n", key);
   i->keys_pressed |= key;
   signal_interrupt(i->cpu, INTERRUPT_JOYPAD, 1);
 }
@@ -48,7 +46,6 @@ void input_key_release(struct input* i, int key) {
   if (!(i->keys_pressed & key))
     return;
 
-  fprintf(stderr, "input: key %02X released\n", key);
   i->keys_pressed &= ~key;
 }
 
@@ -68,7 +65,6 @@ void input_update(struct input* i, uint64_t cycles) {
   data[15] = -1;
 
   for (x = 0; data[x] != -1; x++) {
-    fprintf(stderr, "data: %02X (%c)\n", data[x], data[x]);
     if (data[x] == 4) // ctrl+d
       signal_debug_interrupt(i->cpu, "requested by user");
     if ((x < 13) && (data[x] == 0x1B) && (data[x + 1] == 0x5B)) {
@@ -92,8 +88,6 @@ void input_update(struct input* i, uint64_t cycles) {
         input_key_press(i, KEY_SELECT);
     }
   }
-  if (i->keys_pressed)
-    fprintf(stderr, "keys: %02X\n", i->keys_pressed);
   // apparently the interrupt doesn't work with CGB hardware; should we even implement it? lol
 }
 

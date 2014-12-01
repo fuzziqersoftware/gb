@@ -8,51 +8,6 @@
 
 #include "terminal.h"
 
-
-
-int terminal_fd = -1;
-static struct termios orig_terminal_settings;
-static int reset_function_registered = 0;
-
-void reset_terminal_settings() {
-    tcsetattr(terminal_fd, TCSANOW, &orig_terminal_settings);
-}
-
-void set_terminal_raw() {
-  struct termios new_settings;
-  tcgetattr(terminal_fd, &orig_terminal_settings);
-
-  memcpy(&new_settings, &orig_terminal_settings, sizeof(struct termios));
-  if (!reset_function_registered) {
-    atexit(reset_terminal_settings);
-    reset_function_registered = 1;
-  }
-
-  new_settings.c_lflag &= ~(ECHO | ICANON);
-  tcsetattr(terminal_fd, TCSANOW, &new_settings);
-}
-
-void set_fd_blocking(int fd, int blocking) {
-  int flags = fcntl(fd, F_GETFL);
-  if (!blocking)
-    flags |= O_NONBLOCK;
-  else
-    flags &= ~O_NONBLOCK;
-  fcntl(fd, F_SETFL, flags);
-}
-
-void set_terminal_graphics(int graphics_mode) {
-  static int graphics_mode_enabled = 0;
-  if (graphics_mode == graphics_mode_enabled)
-    return;
-
-  graphics_mode_enabled = graphics_mode;
-  if (graphics_mode_enabled)
-    printf("\e[?25l\e[2J");
-  else
-    printf("\e[2J\e[?25h\e[m");
-}
-
 int write_change_color(char* fmt, int color, ...) {
   fmt[0] = '\033';
   int fmt_len = 1;

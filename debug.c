@@ -7,15 +7,10 @@
 #include "cpu.h"
 #include "debug.h"
 #include "display.h"
-#include "terminal.h"
-
-extern int terminal_fd;
 
 void debug_main(struct regs* r, struct memory* m) {
 
   display_pause((struct display*)m->devices[DEVICE_DISPLAY]);
-  if (terminal_fd != -1 && isatty(terminal_fd))
-      reset_terminal_settings();
 
   char filename[L_tmpnam];
   tmpnam(filename);
@@ -45,7 +40,5 @@ void debug_main(struct regs* r, struct memory* m) {
 
   unlink(filename);
 
-  if (terminal_fd != -1 && isatty(terminal_fd))
-      set_terminal_raw();
   display_resume((struct display*)m->devices[DEVICE_DISPLAY]);
 }

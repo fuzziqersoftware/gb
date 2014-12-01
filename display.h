@@ -48,14 +48,13 @@ struct display {
   uint64_t last_vblank_time;
   uint64_t pause_time;
   uint64_t render_freq;
-  int render_terminal;
-  int render_opengl;
-  int use_terminal_graphics;
+
+  uint16_t image_color_ids[144][160];
+  float image[144][160][3];
 };
 
 void display_init(struct display* d, struct regs* cpu, struct memory* m,
-    uint64_t render_freq, int render_terminal, int render_opengl,
-    int use_terminal_graphics);
+    uint64_t render_freq);
 void display_print(FILE* f, struct display* d);
 
 void display_pause(struct display* d);
