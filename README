@@ -1,0 +1,25 @@
+gb is a Nintendo Game Boy emulator that I wrote because I felt like it. (Also
+because I had never written an emulator before.)
+
+Current state:
+- No audio (completely unimplemented).
+- Input and B&W display works, but many features are unimplemented. Super Mario
+  Land is playable.
+- Serial "works" (it writes to the terminal).
+- Probably lots of bugs.
+
+Building:
+- Install Xcode (or some other variant of GCC).
+- Run `make`.
+
+Running:
+- Run `./gb --opengl-scale=<scale> <rom_file_name>`. Choose <scale>
+  appropriately for your screen size - the display size will be
+  (160x144) * scale.
+
+Key bindings:
+- D-pad (up/down/left/right) -> arrow keys
+- A -> space
+- B -> tab
+- Select -> z
+- Start -> enter
