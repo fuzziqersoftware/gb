@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#include "mmu.h"
-
 #define CART_TYPES(op) \
   op(CART_TYPE_SIMPLE,                  0x00, SIMPLE,        default_mbc) \
   op(CART_TYPE_MBC1,                    0x01, MBC1,          mbc1) \

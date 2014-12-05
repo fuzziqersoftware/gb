@@ -63,6 +63,12 @@ inline int ram_size_for_ram_size_code(uint8_t code) {
   return code ? (0x200 << (code << 1)) : 0;
 }
 
+union cart_data* create_cart(uint64_t size) {
+  union cart_data* c = (union cart_data*)malloc(size);
+  memset(c, 0, sizeof(union cart_data));
+  return c;
+}
+
 union cart_data* load_cart_from_file(const char* filename) {
   FILE* f = fopen(filename, "rb");
   if (!f)
