@@ -70,9 +70,18 @@ struct sprite_info {
 
 static void display_update_line(struct display* d, int y) {
 
-  // if disabled, don't draw anything
-  if (!(d->control & 0x80))
+  int x;
+
+  // if disabled, draw nothing
+  if (!(d->control & 0x80)) {
+    for (x = 0; x < 160; x++) {
+      d->image_color_ids[y][x] = 0xFF;
+      d->image[y][x][0] = 1.0f;
+      d->image[y][x][1] = 1.0f;
+      d->image[y][x][2] = 1.0f;
+    }
     return;
+  }
 
   static float colors[][3] = {
     {1.0f, 1.0f, 1.0f},
@@ -88,7 +97,7 @@ static void display_update_line(struct display* d, int y) {
       ptr(d->mem, 0x9C00) : ptr(d->mem, 0x9800));
 
   // draw background
-  int x, z;
+  int z;
   int tile_y = ((y + d->scy) & 0xFF) / 8;
   int tile_pixel_y = (y + d->scy) % 8;
   int decoded_tile_id = -1;
