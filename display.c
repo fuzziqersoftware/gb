@@ -189,9 +189,9 @@ static void display_update_line(struct display* d, int y) {
           continue;
         int color_id = tile_data[line_id][x];
         d->image_color_ids[y][target_x] = color_id;
-        d->image[y][target_x][0] = colors[color_id][0];
+        d->image[y][target_x][0] = d->highlight_sprites ? 1.0f : colors[color_id][0];
         d->image[y][target_x][1] = colors[color_id][1];
-        d->image[y][target_x][2] = colors[color_id][2];
+        d->image[y][target_x][2] = d->highlight_sprites ? 0.0f : colors[color_id][2];
       }
     }
   }

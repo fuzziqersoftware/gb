@@ -48,6 +48,7 @@ struct display {
   uint64_t last_vblank_time;
   uint64_t pause_time;
   uint64_t render_freq;
+  int highlight_sprites;
 
   uint16_t image_color_ids[144][160];
   float image[144][160][3];

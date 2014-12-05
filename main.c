@@ -136,8 +136,8 @@ int main(int argc, char* argv[]) {
   }
 
   const char* rom_file_name = NULL;
-  int debug = 0, do_disassemble = 0, use_debug_cart = 0, fd = 0,
-      wait_vblank = 0, render_freq = 1, opengl_scale = 1;
+  int debug = 0, do_disassemble = 0, use_debug_cart = 0, wait_vblank = 0,
+      render_freq = 1, opengl_scale = 1, highlight_sprites = 0;
   int32_t breakpoint_addr = -1, watchpoint_addr = -1, write_breakpoint_addr = -1, memory_watchpoint_addr = -1;
   uint64_t stop_after_cycles = 0;
   int x;
@@ -161,8 +161,8 @@ int main(int argc, char* argv[]) {
         use_debug_cart = 1;
       else if (!strcmp(argv[x], "--wait-vblank"))
         wait_vblank = 1;
-      else if (!strcmp(argv[x], "--disable-input"))
-        fd = -1;
+      else if (!strcmp(argv[x], "--highlight-sprites"))
+        highlight_sprites = 1;
       else if (!strncmp(argv[x], "--opengl-scale=", 15))
         sscanf(&argv[x][15], "%d", &opengl_scale);
       else if (!strncmp(argv[x], "--stop-cycles=", 14))
@@ -222,6 +222,7 @@ int main(int argc, char* argv[]) {
   audio_init(&hw.aud, hw.cpu);
   input_init(&hw.inp, hw.cpu);
   hw.lcd.wait_vblank = wait_vblank;
+  hw.lcd.highlight_sprites = highlight_sprites;
 
   // bind devices to memory manager
   add_device(hw.mem, DEVICE_DISPLAY, &hw.lcd);
