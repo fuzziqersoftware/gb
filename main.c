@@ -2,7 +2,6 @@
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
-#include <termios.h>
 #include <unistd.h>
 
 #include "cart.h"
@@ -15,6 +14,7 @@
 #include "input.h"
 #include "terminal.h"
 #include "opengl.h"
+#include "util.h"
 
 #ifdef MACOSX
 #include "OpenGL/gl.h"
@@ -35,17 +35,50 @@ struct hardware {
   struct regs* cpu;
   struct memory* mem;
   union cart_data* cart;
+
+  int paused;
 } hw;
 
 static void opengl_display_cb() {
-  //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  // TODO display
-  //glutSwapBuffers();
+  // only render if paused - if not paused, rendering is done by display_update
+  if (hw.paused) {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    display_render_window_opengl(&hw.lcd);
+
+    glBegin(GL_QUADS);
+    glColor4f(0.0f, 0.0f, 0.0f, 0.2f);
+    glVertex3f(-1.0f, -1.0f, 1.0f);
+    glVertex3f(1.0f, -1.0f, 1.0f);
+    glVertex3f(1.0f, 1.0f, 1.0f);
+    glVertex3f(-1.0f, 1.0f, 1.0f);
+
+    float xpos;
+    for (xpos = -1.5f - 0.2 +
+          (float)(now() % 3000000) / 3000000 * 2 * 0.2;
+         xpos < 3.5f;
+         xpos += (2 * 0.2)) {
+      glVertex2f(xpos, 1);
+      glVertex2f(xpos + 0.2, 1);
+      glVertex2f(xpos - 2 + 0.2, -1);
+      glVertex2f(xpos - 2, -1);
+    }
+    glEnd();
+
+    glutSwapBuffers();
+  }
 }
 
 static void opengl_key_press_cb(uint8_t key, int x, int y) {
-  if (key == 0x1B)
+  if (key == 'q' || key == 'Q')
     exit(0);
+  if (key == 0x1B) {
+    hw.paused = !hw.paused;
+    if (hw.paused)
+      display_pause(&hw.lcd);
+    else
+      display_resume(&hw.lcd);
+  }
   if (key == '\t')
     input_key_press(&hw.inp, KEY_B);
   if (key == ' ')
@@ -90,7 +123,8 @@ static void opengl_special_key_release_cb(int key, int x, int y) {
 }
 
 static void opengl_idle_cb() {
-  run_cycles(hw.cpu, hw.mem, LCD_CYCLES_PER_FRAME);
+  if (!hw.paused)
+    run_cycles(hw.cpu, hw.mem, LCD_CYCLES_PER_FRAME);
   glutPostRedisplay();
 }
 
@@ -196,6 +230,8 @@ int main(int argc, char* argv[]) {
   add_device(hw.mem, DEVICE_AUDIO, &hw.aud);
   add_device(hw.mem, DEVICE_CPU, hw.cpu);
   add_device(hw.mem, DEVICE_INPUT, &hw.inp);
+
+  hw.paused = 0;
 
   // setup opengl
   opengl_init();

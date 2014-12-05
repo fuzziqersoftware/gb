@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <sys/time.h>
 #include <unistd.h>
 
 #ifdef MACOSX
@@ -19,19 +18,14 @@
 #include "display.h"
 #include "cpu.h"
 #include "mmu.h"
-
-static uint64_t display_gettime_us() {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return (tv.tv_sec * 1000000) + tv.tv_usec;
-}
+#include "util.h"
 
 void display_pause(struct display* d) {
-  d->pause_time = display_gettime_us();
+  d->pause_time = now();
 }
 
 void display_resume(struct display* d) {
-  d->last_vblank_time += (display_gettime_us() - d->pause_time);
+  d->last_vblank_time += (now() - d->pause_time);
 }
 
 void display_init(struct display* d, struct regs* cpu, struct memory* m,
@@ -42,7 +36,7 @@ void display_init(struct display* d, struct regs* cpu, struct memory* m,
   d->mem = m;
   d->render_freq = render_freq;
   d->wait_vblank = 1;
-  d->last_vblank_time = display_gettime_us();
+  d->last_vblank_time = now();
 
   int x;
   for (x = 0; x < 0x20; x++)
@@ -212,8 +206,6 @@ void display_render_window_opengl(const struct display* d) {
     }
   }
   glEnd();
-
-  glutSwapBuffers();
 }
 
 void display_print(FILE* f, struct display* d) {
@@ -265,18 +257,20 @@ void display_update(struct display* d, uint64_t cycles) {
 
   if ((prev_ly > 0) && (d->ly == 0)) {
     int frame_num = cycles / LCD_CYCLES_PER_FRAME;
-    if (d->render_freq && (frame_num % d->render_freq) == 0)
+    if (d->render_freq && (frame_num % d->render_freq) == 0) {
       display_render_window_opengl(d);
+      glutSwapBuffers();
+    }
 
     if (d->wait_vblank) {
       // 16750 us/frame = 59.7 frames/sec
       d->last_vblank_time += 16750;
-      uint64_t now = display_gettime_us();
-      if (now < d->last_vblank_time)
-        usleep(d->last_vblank_time - now);
+      uint64_t t = now();
+      if (t < d->last_vblank_time)
+        usleep(d->last_vblank_time - t);
       else
         fprintf(stderr, "display: emulation is too slow! %llu missing usecs\n",
-            now - d->last_vblank_time);
+            t - d->last_vblank_time);
     }
   }
 

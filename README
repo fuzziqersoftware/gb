@@ -23,3 +23,5 @@ Key bindings:
 - B -> tab
 - Select -> z
 - Start -> enter
+- (pause/resume emulation) -> escape
+- (exit) -> q

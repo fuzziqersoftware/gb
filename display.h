@@ -60,6 +60,8 @@ void display_print(FILE* f, struct display* d);
 void display_pause(struct display* d);
 void display_resume(struct display* d);
 
+void display_render_window_opengl(const struct display* d);
+
 void display_update(struct display* d, uint64_t cycles);
 uint8_t read_lcd_reg(struct display* d, uint8_t addr);
 void write_lcd_reg(struct display* d, uint8_t addr, uint8_t value);
