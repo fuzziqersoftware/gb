@@ -70,7 +70,7 @@ static void opengl_display_cb() {
 }
 
 static void opengl_key_press_cb(uint8_t key, int x, int y) {
-  if (key == 'q' || key == 'Q')
+  if (key == 'e' || key == 'E')
     exit(0);
   if (key == 0x1B) {
     hw.paused = !hw.paused;
