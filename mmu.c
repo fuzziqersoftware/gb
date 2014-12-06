@@ -392,11 +392,11 @@ struct memory* create_memory(union cart_data* cart) {
   m->cart_rom_bank_num = 1;
   m->wram_bank_num = 1;
 
-  m->vram = (uint8_t*)malloc(0x4000);
-  m->eram = eram_size ? (uint8_t*)malloc(eram_size) : NULL;
-  m->wram = (uint8_t*)malloc(0x8000);
-  m->sprite_table = (uint8_t*)malloc(0xA0);
-  m->hram = (uint8_t*)malloc(0x80);
+  m->vram = (uint8_t*)calloc(1, 0x4000);
+  m->eram = eram_size ? (uint8_t*)calloc(1, eram_size) : NULL;
+  m->wram = (uint8_t*)calloc(1, 0x8000);
+  m->sprite_table = (uint8_t*)calloc(1, 0xA0);
+  m->hram = (uint8_t*)calloc(1, 0x80);
 
   m->write_breakpoint_addr = 0x10000;
 
