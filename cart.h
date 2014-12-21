@@ -86,7 +86,8 @@ const struct cart_type_info* type_info_for_cart_type(uint8_t id);
 
 uint8_t header_checksum(const struct cart_header* h);
 uint16_t global_checksum(const union cart_data* c);
-int verify_logo(uint8_t* logo);
+int verify_logo(const uint8_t* logo);
+uint32_t crc32_cart(const union cart_data* c);
 
 int rom_size_for_rom_size_code(uint8_t code);
 int ram_size_for_ram_size_code(uint8_t code);

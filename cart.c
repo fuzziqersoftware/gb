@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "cart.h"
+#include "crc32.h"
 
 #define op(name, id, class_id, prefix) {id, CART_CLASS_##class_id, #name},
 static const struct cart_type_info cart_types[] = {
@@ -41,7 +42,7 @@ uint16_t global_checksum(const union cart_data* c) {
   return 0;
 }
 
-int verify_logo(uint8_t* logo) {
+int verify_logo(const uint8_t* logo) {
   static const uint8_t correct_logo[] = {
     0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B,
     0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,
@@ -52,6 +53,10 @@ int verify_logo(uint8_t* logo) {
   };
 
   return !memcmp(logo, correct_logo, sizeof(correct_logo));
+}
+
+uint32_t crc32_cart(const union cart_data* c) {
+  return crc32(c->data, rom_size_for_rom_size_code(c->header.rom_size));
 }
 
 inline int rom_size_for_rom_size_code(uint8_t code) {
@@ -120,4 +125,5 @@ void print_cart_info(union cart_data* c) {
   printf("mask rom version  : %02X\n", c->header.mask_rom_version);
   printf("header checksum   : %02X (%s)\n", c->header.header_checksum, header_checksum(&c->header) == c->header.header_checksum ? "ok" : "incorrect");
   printf("global checksum   : %04X (%s)\n", c->header.global_checksum, "unverified");
+  printf("crc32             : %08X\n", crc32_cart(c));
 }
