@@ -339,13 +339,11 @@ void write_lcd_reg(struct display* d, uint8_t addr, uint8_t value) {
   switch (addr) {
     case 0x40:
       d->control = value;
-      fprintf(stderr, "lcd control: %02X\n", value);
       break;
 
     case 0x41:
       // can't write the lower 3 bits
       d->status = (d->status & 7) | (value & 0x78);
-      fprintf(stderr, "lcd status: %02X\n", value);
       break;
 
     case 0x42:
@@ -358,89 +356,56 @@ void write_lcd_reg(struct display* d, uint8_t addr, uint8_t value) {
 
     case 0x4A:
       d->wy = value;
-      fprintf(stderr, "lcd ywindow: %02X\n", value);
       break;
 
     case 0x4B:
       d->wx = value;
-      fprintf(stderr, "lcd xwindow: %02X (actual %d)\n", value, value - 7);
       break;
 
     case 0x44:
-      fprintf(stderr, "lcd: attempted to write ly %02X (skipped)\n", value);
+      // not writable
       break;
 
     case 0x45:
       d->lyc = value;
-      fprintf(stderr, "lcd lyc: %02X\n", d->lyc);
       break;
 
     case 0x46: {
-      //fprintf(stderr, "lcd: sprite table dma from %02X00\n", value);
       int x, addr = (value << 8);
       for (x = 0; x < 0xA0; x++)
         write8(d->mem, 0xFE00 + x, read8(d->mem, addr + x));
       break;
     }
 
-    case 0x47: {
+    case 0x47:
       d->bg_palette = value;
-
-      int x;
-      fprintf(stderr, "lcd: bg palette set to [");
-      for (x = 0; x < 4; x++)
-        fprintf(stderr, "%d", (d->bg_palette >> (x << 1)) & 3);
-      fprintf(stderr, "]\n");
       break;
-    }
 
-    case 0x48: {
+    case 0x48:
       d->palette0 = value;
-
-      int x;
-      fprintf(stderr, "lcd: object palette 0 set to [");
-      for (x = 0; x < 4; x++)
-        fprintf(stderr, "%d", (d->palette0 >> (x << 1)) & 3);
-      fprintf(stderr, "]\n");
       break;
-    }
 
-    case 0x49: {
+    case 0x49:
       d->palette1 = value;
-
-      int x;
-      fprintf(stderr, "lcd: object palette 1 set to [");
-      for (x = 0; x < 4; x++)
-        fprintf(stderr, "%d", (d->palette1 >> (x << 1)) & 3);
-      fprintf(stderr, "]\n");
       break;
-    }
 
     case 0x68:
       d->bg_color_palette_index = value & 0xBF;
       break;
-    case 0x69: {
+    case 0x69:
       d->bg_color_palette[d->bg_color_palette_index & 0x3F] = value;
-      int color_index = (d->bg_color_palette_index >> 1) & 0x1F;
-      fprintf(stderr, "lcd: bg palette %d set to %04hX\n", color_index,
-          d->bg_colors[color_index]);
       if (d->bg_color_palette_index & 0x80)
         d->bg_color_palette_index = (d->bg_color_palette_index + 1) & 0xBF;
       break;
-    }
 
     case 0x6A:
       d->sprite_color_palette_index = value & 0xBF;
       break;
-    case 0x6B: {
+    case 0x6B:
       d->sprite_color_palette[d->sprite_color_palette_index & 0x3F] = value;
-      int color_index = (d->sprite_color_palette_index >> 1) & 0x1F;
-      fprintf(stderr, "lcd: sprite palette %d set to %04hX\n", color_index,
-          d->sprite_colors[color_index]);
       if (d->sprite_color_palette_index & 0x80)
         d->sprite_color_palette_index = (d->sprite_color_palette_index + 1) & 0xBF;
       break;
-    }
 
     default:
       fprintf(stderr, "lcd reg write: %02X %02X\n", addr, value);

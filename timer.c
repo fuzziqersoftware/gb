@@ -70,6 +70,4 @@ uint8_t read_timer_control(struct timer* t, uint8_t addr) {
 
 void write_timer_control(struct timer* t, uint8_t addr, uint8_t value) {
   t->control = value;
-  fprintf(stderr, "timer control reset: %dHz, %s\n", timer_freq[t->control & 3],
-      (t->control & 4) ? "enabled" : "disabled");
 }

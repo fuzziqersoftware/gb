@@ -187,14 +187,12 @@ void run_op_stop(struct regs* r, struct memory* m, uint8_t op) {
   if (r->speed_switch & 0x01) {
     r->speed_switch = (r->speed_switch ^ 0x80) & 0x80;
     r->stop = 0;
-    printf("speed switched to %s; skipping stop instruction\n", is_double_speed_mode(r) ? "double" : "normal");
   }
 }
 
 void run_op_jr_r8(struct regs* r, struct memory* m, uint8_t op) {
   uint8_t v = ifetch(r, m);
   if (v == 0xFE) {
-    printf("warning: jr -02 opcode halted system\n");
     r->stop = 1;
   }
   r->pc += sign_extend(v);
@@ -245,10 +243,8 @@ void run_op_daa(struct regs* r, struct memory* m, uint8_t op) {
     if (get_flag_value(r, FLAG_C))
         value -= 0x60;
   }
-  //uint16_t orig_af = r->af;
   r->a = value & 0xFF;
   r->f = make_flags_reg(r->a == 0, get_flag_value(r, FLAG_N), 0, (value & 0x0100) || get_flag_value(r, FLAG_C));
-  //printf("daa: %04X -> %04X\n", orig_af, r->af);
 }
 
 void run_op_cpl(struct regs* r, struct memory* m, uint8_t op) {
