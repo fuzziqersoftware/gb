@@ -1236,7 +1236,7 @@ opcode_def cb_opcodes[0x100] = {
   {0xFF, "set",              2,  8,  8, ARG_X2,    ARG_BIT,  run_op_set},
 };
 
-int run_cycle(struct regs* r, const struct regs* prev, struct memory* m) {
+int run_cycle(struct regs* r, struct memory* m) {
 
   // check for debug interrupt
   if (r->debug_interrupt_reason) {
@@ -1263,7 +1263,7 @@ int run_cycle(struct regs* r, const struct regs* prev, struct memory* m) {
           stack_push(r, m, r->pc);
           r->pc = 0x40 + 8 * x;
           if (r->debug)
-            print_regs(r, prev, m);
+            print_regs(r, m);
           break;
         }
       }
@@ -1292,19 +1292,16 @@ int run_cycle(struct regs* r, const struct regs* prev, struct memory* m) {
   update_devices(m, r->cycles);
 
   if (r->debug)
-    print_regs(r, prev, m);
+    print_regs(r, m);
 
   return 0;
 }
 
 int run_cycles(struct regs* cpu, struct memory* mem, uint64_t num_cycles) {
-  struct regs prev;
-  memset(&prev, 0, sizeof(prev));
   while (num_cycles && (!cpu->stop_after_cycles || (cpu->cycles < cpu->stop_after_cycles))) {
-    int err = run_cycle(cpu, &prev, mem);
+    int err = run_cycle(cpu, mem);
     if (err)
       return err;
-    memcpy(&prev, cpu, sizeof(prev));
     num_cycles--;
   }
   return 0;
@@ -1517,11 +1514,10 @@ static int print_opcode(FILE* f, const uint8_t* opcode_data, struct memory* m) {
 
 #define print_reg_value(regname, format) \
   do { \
-    setup_color_if_true(prev && (r->regname != prev->regname)); \
     printf(" " #regname "=" format, r->regname); \
   } while (0)
 
-void print_regs(const struct regs* r, const struct regs* prev, struct memory* m) {
+void print_regs(const struct regs* r, struct memory* m) {
 
   uint8_t code_data[4];
   code_data[0] = read8(m, r->pc);

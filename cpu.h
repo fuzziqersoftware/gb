@@ -59,7 +59,7 @@ struct regs {
   uint16_t ddx;
 };
 
-int run_cycle(struct regs* r, const struct regs* prev, struct memory* m);
+int run_cycle(struct regs* r, struct memory* m);
 int run_cycles(struct regs* r, struct memory* m, uint64_t num_cycles);
 int is_double_speed_mode(struct regs* r);
 
@@ -75,7 +75,7 @@ void write_speed_switch(struct regs* r, uint8_t addr, uint8_t value);
 
 struct regs* create_cpu();
 void delete_cpu();
-void print_regs(const struct regs* r, const struct regs* prev, struct memory* m);
+void print_regs(const struct regs* r, struct memory* m);
 void print_regs_debug(FILE* f, const struct regs* r);
 void disassemble(FILE* output_stream, void* data, uint32_t size, uint32_t offset, uint32_t dasm_size);
 void disassemble_memory(FILE* output_stream, struct memory* m, uint16_t addr, uint16_t size);
