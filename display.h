@@ -49,13 +49,16 @@ struct display {
   uint64_t pause_time;
   uint64_t render_freq;
   int highlight_sprites;
+  void (*display_cb)(struct display* d, void* param);
+  void* display_cb_arg;
 
   uint16_t image_color_ids[144][160];
   float image[144][160][3];
 };
 
 void display_init(struct display* d, struct regs* cpu, struct memory* m,
-    uint64_t render_freq);
+    uint64_t render_freq, void (*display_cb)(struct display* d, void* param),
+    void* cb_arg);
 void display_print(FILE* f, struct display* d);
 
 void display_pause(struct display* d);

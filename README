@@ -10,6 +10,7 @@ Current state:
 
 Building:
 - Install Xcode (or some other variant of GCC).
+- Install GLFW (http://www.glfw.org/).
 - Run `make`.
 
 Running:

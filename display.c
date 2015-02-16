@@ -29,7 +29,8 @@ void display_resume(struct display* d) {
 }
 
 void display_init(struct display* d, struct regs* cpu, struct memory* m,
-    uint64_t render_freq) {
+    uint64_t render_freq, void (*display_cb)(struct display* d, void* param),
+    void* display_cb_arg) {
 
   memset(d, 0, sizeof(*d));
   d->cpu = cpu;
@@ -37,6 +38,8 @@ void display_init(struct display* d, struct regs* cpu, struct memory* m,
   d->render_freq = render_freq;
   d->wait_vblank = 1;
   d->last_vblank_time = now();
+  d->display_cb = display_cb;
+  d->display_cb_arg = display_cb_arg;
 
   int x;
   for (x = 0; x < 0x20; x++)
@@ -266,11 +269,8 @@ void display_update(struct display* d, uint64_t cycles) {
 
   if ((prev_ly > 0) && (d->ly == 0)) {
     int frame_num = cycles / LCD_CYCLES_PER_FRAME;
-    if (d->render_freq && (frame_num % d->render_freq) == 0) {
-      display_render_window_opengl(d);
-      glutSwapBuffers();
-    }
-
+    if (d->render_freq && (frame_num % d->render_freq) == 0)
+      d->display_cb(d, d->display_cb_arg);
     if (d->wait_vblank) {
       // 16750 us/frame = 59.7 frames/sec
       d->last_vblank_time += 16750;

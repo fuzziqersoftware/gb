@@ -17,8 +17,4 @@ inline float opengl_window_y(int win_y, int y) {
   return (2 * (float)y / win_y) - 1;
 }
 
-void opengl_init();
-void opengl_create_window(int w, int h, const char* title);
-int opengl_run_loop_async();
-
 #endif // OPENGL_H

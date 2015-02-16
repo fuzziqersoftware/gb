@@ -4,6 +4,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <GLFW/glfw3.h>
+
 #include "cart.h"
 #include "cpu.h"
 
@@ -15,16 +17,6 @@
 #include "terminal.h"
 #include "opengl.h"
 #include "util.h"
-
-#ifdef MACOSX
-#include "OpenGL/gl.h"
-#include "OpenGL/glu.h"
-#include "GLUT/glut.h"
-#else
-#include "GL/gl.h"
-#include "GL/glu.h"
-#include "GL/glut.h"
-#endif
 
 struct hardware {
   struct display lcd;
@@ -39,94 +31,67 @@ struct hardware {
   int paused;
 } hw;
 
-static void opengl_display_cb() {
-  // only render if paused - if not paused, rendering is done by display_update
-  if (hw.paused) {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    display_render_window_opengl(&hw.lcd);
 
-    glBegin(GL_QUADS);
-    glColor4f(0.0f, 0.0f, 0.0f, 0.2f);
-    glVertex3f(-1.0f, -1.0f, 1.0f);
-    glVertex3f(1.0f, -1.0f, 1.0f);
-    glVertex3f(1.0f, 1.0f, 1.0f);
-    glVertex3f(-1.0f, 1.0f, 1.0f);
+static void glfw_error_cb(int error, const char* description) {
+  fprintf(stderr, "[GLFW %d] %s\n", error, description);
+}
 
-    float xpos;
-    for (xpos = -1.5f - 0.2 +
-          (float)(now() % 3000000) / 3000000 * 2 * 0.2;
-         xpos < 3.5f;
-         xpos += (2 * 0.2)) {
-      glVertex2f(xpos, 1);
-      glVertex2f(xpos + 0.2, 1);
-      glVertex2f(xpos - 2 + 0.2, -1);
-      glVertex2f(xpos - 2, -1);
-    }
-    glEnd();
+static void glfw_key_cb(GLFWwindow* window, int key, int scancode, int action, int mods) {
+  if (action == GLFW_PRESS) {
+    if (key == GLFW_KEY_E)
+      glfwSetWindowShouldClose(window, 1);
 
-    glutSwapBuffers();
+    else if (key == GLFW_KEY_ESCAPE) {
+      hw.paused = !hw.paused;
+      if (hw.paused)
+        display_pause(&hw.lcd);
+      else
+        display_resume(&hw.lcd);
+
+    } else if (key == GLFW_KEY_TAB)
+      input_key_press(&hw.inp, KEY_B);
+    else if (key == GLFW_KEY_SPACE)
+      input_key_press(&hw.inp, KEY_A);
+    else if (key == GLFW_KEY_ENTER)
+      input_key_press(&hw.inp, KEY_START);
+    else if (key == GLFW_KEY_Z)
+      input_key_press(&hw.inp, KEY_SELECT);
+    else if (key == GLFW_KEY_LEFT)
+      input_key_press(&hw.inp, KEY_LEFT);
+    else if (key == GLFW_KEY_RIGHT)
+      input_key_press(&hw.inp, KEY_RIGHT);
+    else if (key == GLFW_KEY_UP)
+      input_key_press(&hw.inp, KEY_UP);
+    else if (key == GLFW_KEY_DOWN)
+      input_key_press(&hw.inp, KEY_DOWN);
+
+  } else if (action == GLFW_RELEASE) {
+    if (key == GLFW_KEY_TAB)
+      input_key_release(&hw.inp, KEY_B);
+    else if (key == GLFW_KEY_SPACE)
+      input_key_release(&hw.inp, KEY_A);
+    else if (key == GLFW_KEY_ENTER)
+      input_key_release(&hw.inp, KEY_START);
+    else if (key == GLFW_KEY_Z)
+      input_key_release(&hw.inp, KEY_SELECT);
+    else if (key == GLFW_KEY_LEFT)
+      input_key_release(&hw.inp, KEY_LEFT);
+    else if (key == GLFW_KEY_RIGHT)
+      input_key_release(&hw.inp, KEY_RIGHT);
+    else if (key == GLFW_KEY_UP)
+      input_key_release(&hw.inp, KEY_UP);
+    else if (key == GLFW_KEY_DOWN)
+      input_key_release(&hw.inp, KEY_DOWN);
   }
 }
 
-static void opengl_key_press_cb(uint8_t key, int x, int y) {
-  if (key == 'e' || key == 'E')
-    exit(0);
-  if (key == 0x1B) {
-    hw.paused = !hw.paused;
-    if (hw.paused)
-      display_pause(&hw.lcd);
-    else
-      display_resume(&hw.lcd);
-  }
-  if (key == '\t')
-    input_key_press(&hw.inp, KEY_B);
-  if (key == ' ')
-    input_key_press(&hw.inp, KEY_A);
-  if (key == '\r')
-    input_key_press(&hw.inp, KEY_START);
-  if (key == 'Z' || key == 'z')
-    input_key_press(&hw.inp, KEY_SELECT);
+static void display_render_cb(struct display* d, void* arg) {
+  display_render_window_opengl(d);
+  glfwSwapBuffers((GLFWwindow*)arg);
 }
 
-static void opengl_special_key_press_cb(int key, int x, int y) {
-  if (key == GLUT_KEY_LEFT)
-    input_key_press(&hw.inp, KEY_LEFT);
-  if (key == GLUT_KEY_RIGHT)
-    input_key_press(&hw.inp, KEY_RIGHT);
-  if (key == GLUT_KEY_UP)
-    input_key_press(&hw.inp, KEY_UP);
-  if (key == GLUT_KEY_DOWN)
-    input_key_press(&hw.inp, KEY_DOWN);
-}
 
-static void opengl_key_release_cb(uint8_t key, int x, int y) {
-  if (key == '\t')
-    input_key_release(&hw.inp, KEY_B);
-  if (key == ' ')
-    input_key_release(&hw.inp, KEY_A);
-  if (key == '\r')
-    input_key_release(&hw.inp, KEY_START);
-  if (key == 'Z' || key == 'z')
-    input_key_release(&hw.inp, KEY_SELECT);
-}
-
-static void opengl_special_key_release_cb(int key, int x, int y) {
-  if (key == GLUT_KEY_LEFT)
-    input_key_release(&hw.inp, KEY_LEFT);
-  if (key == GLUT_KEY_RIGHT)
-    input_key_release(&hw.inp, KEY_RIGHT);
-  if (key == GLUT_KEY_UP)
-    input_key_release(&hw.inp, KEY_UP);
-  if (key == GLUT_KEY_DOWN)
-    input_key_release(&hw.inp, KEY_DOWN);
-}
-
-static void opengl_idle_cb() {
-  if (!hw.paused)
-    run_cycles(hw.cpu, hw.mem, LCD_CYCLES_PER_FRAME);
-  glutPostRedisplay();
-}
 
 int main(int argc, char* argv[]) {
 
@@ -196,6 +161,26 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
+  if (!glfwInit()) {
+    fprintf(stderr, "failed to initialize GLFW\n");
+    return -3;
+  }
+  glfwSetErrorCallback(glfw_error_cb);
+
+  GLFWwindow* window = glfwCreateWindow(160 * opengl_scale, 144 * opengl_scale,
+      "gb", NULL, NULL);
+  glfwSetKeyCallback(window, glfw_key_cb);
+
+  glfwMakeContextCurrent(window);
+
+  glDisable(GL_LIGHTING);
+  glDisable(GL_DEPTH_TEST);
+  glLineWidth(3);
+  glPointSize(12);
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+  // create devices
   hw.mem = create_memory(hw.cart);
   if (!hw.mem) {
     fprintf(stderr, "failed to create memory\n");
@@ -204,7 +189,6 @@ int main(int argc, char* argv[]) {
   }
   hw.mem->write_breakpoint_addr = write_breakpoint_addr;
 
-  // create devices
   hw.cpu = create_cpu();
   if (!hw.cpu) {
     fprintf(stderr, "failed to create cpu\n");
@@ -216,7 +200,7 @@ int main(int argc, char* argv[]) {
   // initialize devices
   hw.cpu->debug = debug;
   hw.cpu->ddx = memory_watchpoint_addr;
-  display_init(&hw.lcd, hw.cpu, hw.mem, render_freq);
+  display_init(&hw.lcd, hw.cpu, hw.mem, render_freq, display_render_cb, window);
   serial_init(&hw.ser, hw.cpu);
   timer_init(&hw.tim, hw.cpu);
   audio_init(&hw.aud, hw.cpu);
@@ -234,18 +218,37 @@ int main(int argc, char* argv[]) {
 
   hw.paused = 0;
 
-  // setup opengl
-  opengl_init();
-  opengl_create_window(160 * opengl_scale, 144 * opengl_scale, "gb");
+  while (!glfwWindowShouldClose(window)) {
+    if (!hw.paused)
+      run_cycles(hw.cpu, hw.mem, LCD_CYCLES_PER_FRAME);
 
-  glutDisplayFunc(opengl_display_cb);
-  glutKeyboardFunc(opengl_key_press_cb);
-  glutKeyboardUpFunc(opengl_key_release_cb);
-  glutSpecialFunc(opengl_special_key_press_cb);
-  glutSpecialUpFunc(opengl_special_key_release_cb);
-  glutIdleFunc(opengl_idle_cb);
+    else {
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      display_render_window_opengl(&hw.lcd);
 
-  glutMainLoop();
+      glBegin(GL_QUADS);
+      glColor4f(0.0f, 0.0f, 0.0f, 0.2f);
+      glVertex3f(-1.0f, -1.0f, 1.0f);
+      glVertex3f(1.0f, -1.0f, 1.0f);
+      glVertex3f(1.0f, 1.0f, 1.0f);
+      glVertex3f(-1.0f, 1.0f, 1.0f);
+
+      float xpos;
+      for (xpos = -1.5f - 0.2 +
+            (float)(now() % 3000000) / 3000000 * 2 * 0.2;
+           xpos < 3.5f;
+           xpos += (2 * 0.2)) {
+        glVertex2f(xpos, 1);
+        glVertex2f(xpos + 0.2, 1);
+        glVertex2f(xpos - 2 + 0.2, -1);
+        glVertex2f(xpos - 2, -1);
+      }
+      glEnd();
+      glfwSwapBuffers(window);
+    }
+
+    glfwPollEvents();
+  }
 
   // clean up
   delete_memory(hw.mem);
