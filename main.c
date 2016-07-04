@@ -18,6 +18,8 @@
 #include "opengl.h"
 #include "util.h"
 
+#include "gl_text.h"
+
 struct hardware {
   struct display lcd;
   struct serial ser;
@@ -227,13 +229,14 @@ int main(int argc, char* argv[]) {
       display_render_window_opengl(&hw.lcd);
 
       glBegin(GL_QUADS);
-      glColor4f(0.0f, 0.0f, 0.0f, 0.2f);
+      glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
       glVertex3f(-1.0f, -1.0f, 1.0f);
       glVertex3f(1.0f, -1.0f, 1.0f);
       glVertex3f(1.0f, 1.0f, 1.0f);
       glVertex3f(-1.0f, 1.0f, 1.0f);
 
       float xpos;
+      glColor4f(0.0f, 0.0f, 0.0f, 0.1f);
       for (xpos = -1.5f - 0.2 +
             (float)(now() % 3000000) / 3000000 * 2 * 0.2;
            xpos < 3.5f;
@@ -244,6 +247,17 @@ int main(int argc, char* argv[]) {
         glVertex2f(xpos - 2, -1);
       }
       glEnd();
+
+      draw_text(0.0, 0.8, 1.0, 1.0, 1.0, 1.0, 160.0 / 144.0, 0.01, 1, "fuzziqer software gb");
+      draw_text(0.0, 0.6, 1.0, 1.0, 1.0, 1.0, 160.0 / 144.0, 0.01, 1, rom_file_name);
+      draw_text(0.0, -0.1, 1.0, 1.0, 1.0, 1.0, 160.0 / 144.0, 0.01, 1, "left/right/up/down: arrow keys");
+      draw_text(0.0, -0.2, 1.0, 1.0, 1.0, 1.0, 160.0 / 144.0, 0.01, 1, "space: a");
+      draw_text(0.0, -0.3, 1.0, 1.0, 1.0, 1.0, 160.0 / 144.0, 0.01, 1, "tab: b");
+      draw_text(0.0, -0.4, 1.0, 1.0, 1.0, 1.0, 160.0 / 144.0, 0.01, 1, "z: select");
+      draw_text(0.0, -0.5, 1.0, 1.0, 1.0, 1.0, 160.0 / 144.0, 0.01, 1, "enter: start");
+      draw_text(0.0, -0.7, 1.0, 1.0, 1.0, 1.0, 160.0 / 144.0, 0.01, 1, "esc: pause/resume");
+      draw_text(0.0, -0.8, 1.0, 1.0, 1.0, 1.0, 160.0 / 144.0, 0.01, 1, "e: exit");
+
       glfwSwapBuffers(window);
     }
 
